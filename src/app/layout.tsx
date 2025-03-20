@@ -39,6 +39,8 @@ export default function RootLayout({
               sx={{
                 flexGrow: 1,
                 py: 4,
+                display: 'flex',
+                flexDirection: 'column',
               }}
             >
               {children}

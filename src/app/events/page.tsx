@@ -74,6 +74,7 @@ const UpcomingEventCard = ({ event }: { event: any }) => (
               src={`/api/image?width=800&height=600&seed=${event.id + 50}`}
               alt={event.title}
               fill
+              loading="lazy"
               style={{ objectFit: 'cover' }}
             />
           </Box>
@@ -147,6 +148,7 @@ const PastEventCard = ({ event }: { event: any }) => (
           src={`/api/image?width=600&height=300&seed=${event.id + 80}`}
           alt={event.title}
           fill
+          loading="lazy"
           style={{ objectFit: 'cover' }}
         />
       </Box>

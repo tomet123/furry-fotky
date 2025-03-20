@@ -49,7 +49,9 @@ export async function GET(request: NextRequest) {
     return new NextResponse(imageBuffer, {
       headers: {
         'Content-Type': contentType,
-        'Cache-Control': 'public, max-age=86400' // Cachování na 24 hodin
+        'Cache-Control': 'public, max-age=86400, immutable', // Cachování na 24 hodin, immutable pro lepší optimalizaci
+        'Content-Length': imageBuffer.byteLength.toString(), // Pomáhá prohlížeči odhadnout velikost pro lazy loading
+        'Accept-Ranges': 'bytes', // Podpora pro částečné načítání
       }
     });
   } catch (error) {

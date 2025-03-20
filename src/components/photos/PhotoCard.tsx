@@ -39,9 +39,7 @@ export const PhotoCard: React.FC<PhotoCardProps> = ({
   const [likeCount, setLikeCount] = useState(photo.likes);
   const [likeInProgress, setLikeInProgress] = useState(false);
 
-  const handleLikeClick = async (e: React.MouseEvent) => {
-    e.stopPropagation(); // Zabránit propagaci události na CardActionArea
-    
+  const handleLikeClick = async () => {
     if (likeInProgress || !onLike || !onUnlike) return;
     
     setLikeInProgress(true);
@@ -78,9 +76,49 @@ export const PhotoCard: React.FC<PhotoCardProps> = ({
           transform: 'translateY(-4px)',
           boxShadow: '0 6px 20px rgba(0, 0, 0, 0.1)',
           borderColor: theme.palette.mode === 'dark' ? 'rgba(255, 255, 255, 0.15)' : 'rgba(0, 0, 0, 0.1)',
-        }
+        },
+        position: 'relative'
       }}
     >
+      {/* Lajk tlačítko v pravém horním rohu - PŘESUNUTO mimo CardActionArea */}
+      <Box sx={{ 
+        position: 'absolute', 
+        top: 10, 
+        right: 10, 
+        bgcolor: 'rgba(0,0,0,0.6)', 
+        color: 'white',
+        borderRadius: '12px',
+        px: 1.5,
+        py: 0.5,
+        display: 'flex',
+        alignItems: 'center',
+        gap: 0.5,
+        zIndex: 2
+      }}
+      onClick={(e) => e.stopPropagation()}
+      >
+        <Tooltip title={liked ? 'Odebrat z oblíbených' : 'Přidat do oblíbených'}>
+          <IconButton 
+            size="small" 
+            sx={{ 
+              color: 'white', 
+              p: 0, 
+              '&:hover': { color: '#ff6b6b' } 
+            }}
+            onClick={(e) => {
+              e.stopPropagation();
+              handleLikeClick();
+            }}
+            disabled={likeInProgress || (!onLike && !onUnlike)}
+          >
+            {liked ? <FavoriteIcon fontSize="small" color="error" /> : <FavoriteIcon fontSize="small" />}
+          </IconButton>
+        </Tooltip>
+        <Typography variant="body2" sx={{ fontWeight: 'bold' }}>
+          {likeCount}
+        </Typography>
+      </Box>
+
       <CardActionArea 
         onClick={() => onClick(photo)}
         sx={{
@@ -118,40 +156,6 @@ export const PhotoCard: React.FC<PhotoCardProps> = ({
               }
             }}
           />
-          
-          {/* Lajky v pravém horním rohu fotky */}
-          <Box sx={{ 
-            position: 'absolute', 
-            top: 10, 
-            right: 10, 
-            bgcolor: 'rgba(0,0,0,0.6)', 
-            color: 'white',
-            borderRadius: '12px',
-            px: 1.5,
-            py: 0.5,
-            display: 'flex',
-            alignItems: 'center',
-            gap: 0.5,
-            zIndex: 2
-          }}>
-            <Tooltip title={liked ? 'Odebrat z oblíbených' : 'Přidat do oblíbených'}>
-              <IconButton 
-                size="small" 
-                sx={{ 
-                  color: 'white', 
-                  p: 0, 
-                  '&:hover': { color: '#ff6b6b' } 
-                }}
-                onClick={handleLikeClick}
-                disabled={likeInProgress || (!onLike && !onUnlike)}
-              >
-                {liked ? <FavoriteIcon fontSize="small" color="error" /> : <FavoriteIcon fontSize="small" />}
-              </IconButton>
-            </Tooltip>
-            <Typography variant="body2" sx={{ fontWeight: 'bold' }}>
-              {likeCount}
-            </Typography>
-          </Box>
         </Box>
         
         {/* Informace o fotce */}

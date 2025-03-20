@@ -35,6 +35,7 @@ export default function NotFound() {
             src="/api/image?width=800&height=600&seed=404"
             alt="Ztracená fotka"
             fill
+            loading="lazy"
             style={{ objectFit: 'cover', borderRadius: 8 }}
           />
         </Box>

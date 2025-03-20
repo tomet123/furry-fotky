@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useCallback } from 'react';
+import React, { useState, useEffect, useCallback, useTransition } from 'react';
 import { 
   Dialog, 
   Box, 
@@ -21,9 +21,10 @@ import Link from 'next/link';
 
 // Hook pro sledování velikosti okna
 function useWindowSize() {
+  // Inicializujeme state s prázdnými hodnotami pro SSR
   const [windowSize, setWindowSize] = useState({
-    width: typeof window !== 'undefined' ? window.innerWidth : 0,
-    height: typeof window !== 'undefined' ? window.innerHeight : 0,
+    width: 0,
+    height: 0,
   });
   
   useEffect(() => {
@@ -35,14 +36,17 @@ function useWindowSize() {
       });
     }
     
-    // Přidání event listeneru pro změnu velikosti okna
-    window.addEventListener('resize', handleResize);
-    
-    // Inicializace dat při prvním renderování
-    handleResize();
-    
-    // Vyčištění při odpojení komponenty
-    return () => window.removeEventListener('resize', handleResize);
+    // Spustíme pouze na klientovi (browser)
+    if (typeof window !== 'undefined') {
+      // Přidání event listeneru pro změnu velikosti okna
+      window.addEventListener('resize', handleResize);
+      
+      // Inicializace dat při prvním renderování
+      handleResize();
+      
+      // Vyčištění při odpojení komponenty
+      return () => window.removeEventListener('resize', handleResize);
+    }
   }, []);
   
   return windowSize;
@@ -94,19 +98,29 @@ export const PhotoDetail: React.FC<PhotoDetailProps> = ({
   const [likeCount, setLikeCount] = useState(photo?.likes || 0);
   const [likeInProgress, setLikeInProgress] = useState(false);
   const windowSize = useWindowSize();
+  const [isPending, startTransition] = useTransition();
 
-  // Pokud nemáme foto, nezobrazujeme nic
-  if (!photo) {
-    return null;
-  }
+  // Přidáváme další useEffect, který byl detekován jako chybějící v některých případech
+  // Je třeba zajistit, že tento useEffect se volá při každém renderování
+  useEffect(() => {
+    // Reset načítání při změně fotky
+    if (photo) {
+      setLoading(true);
+    }
+  }, [photo?.id]);
 
-  // Aktualizujeme počet lajků při změně fotografie
+  // Aktualizujeme počet lajků při změně fotografie - přesunuto před podmíněný návrat
   useEffect(() => {
     if (photo) {
       setLikeCount(photo.likes);
       setLiked(false); // Reset stavu like při změně fotografie
     }
   }, [photo]);
+
+  // Pokud nemáme foto, nezobrazujeme nic
+  if (!photo) {
+    return null;
+  }
 
   const toggleFitMode = () => {
     setFitMode(prev => prev === 'contain' ? 'cover' : 'contain');
@@ -151,14 +165,20 @@ export const PhotoDetail: React.FC<PhotoDetailProps> = ({
       if (liked) {
         if (onUnlike) {
           await onUnlike(photo);
-          setLikeCount(prev => Math.max(prev - 1, 0));
-          setLiked(false);
+          // Obalíme změnu stavu do startTransition pro plynulejší UI aktualizace
+          startTransition(() => {
+            setLikeCount(prev => Math.max(prev - 1, 0));
+            setLiked(false);
+          });
         }
       } else {
         if (onLike) {
           await onLike(photo);
-          setLikeCount(prev => prev + 1);
-          setLiked(true);
+          // Obalíme změnu stavu do startTransition pro plynulejší UI aktualizace
+          startTransition(() => {
+            setLikeCount(prev => prev + 1);
+            setLiked(true);
+          });
         }
       }
     } catch (error) {
@@ -241,6 +261,7 @@ export const PhotoDetail: React.FC<PhotoDetailProps> = ({
         <Box
           component="img"
           src={photo.imageUrl || `/api/image?width=1920&height=1080&seed=${photo.id + 50}`}
+          loading={mode === "dialog" ? "eager" : "lazy"}
           onLoad={handleImageLoad}
           onError={handleImageError}
           sx={{

@@ -72,13 +72,13 @@ const HeroSection = () => (
         src="/api/image?width=1920&height=1080&seed=hero"
         alt="FurryFotky.cz"
         fill
+        priority
         style={{
           objectFit: 'cover',
           objectPosition: 'center',
           opacity: 0.3,
           zIndex: -1
         }}
-        priority
       />
     </Box>
     <Box
@@ -244,6 +244,7 @@ const EventCard = ({ event }: { event: Event }) => (
           src={event.coverImageUrl || `/api/image?width=400&height=300&seed=${event.id}`}
           alt={event.name}
           fill
+          loading="lazy"
           style={{
             objectFit: 'cover',
           }}
@@ -285,6 +286,7 @@ const PhotographerCard = ({ photographer }: { photographer: Photographer }) => (
             src={photographer.avatarUrl || `/api/avatar?size=300&seed=${photographer.id}`}
             alt={photographer.name}
             fill
+            loading="lazy"
             style={{
               objectFit: 'cover',
               borderRadius: '50%',

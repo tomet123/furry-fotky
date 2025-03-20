@@ -66,41 +66,51 @@ export function usePhotos({
   
   // Funkce pro přidání lajku k fotografii
   const likePhoto = useCallback(async (photoId: number): Promise<Photo | null> => {
-    const response = await post<Photo>(`/api/photos/${photoId}/like`);
+    const response = await post<{success: boolean, likes: number}>(`/api/photos/${photoId}/like`);
     
-    if (response) {
+    if (response && response.data) {
       // Aktualizace stavu fotografií
       setPhotos(prevPhotos => 
         prevPhotos.map(photo => 
           photo.id === photoId 
-            ? { ...photo, likes: response.data.likes } 
+            ? { ...photo, likes: response.data.likes }
             : photo
         )
       );
-      return response.data;
+      
+      // Vrátíme původní foto s aktualizovaným počtem lajků
+      const updatedPhoto = photos.find(p => p.id === photoId);
+      if (updatedPhoto) {
+        return { ...updatedPhoto, likes: response.data.likes };
+      }
     }
     
     return null;
-  }, [post]);
+  }, [post, photos]);
   
   // Funkce pro odebrání lajku z fotografie
   const unlikePhoto = useCallback(async (photoId: number): Promise<Photo | null> => {
-    const response = await del<Photo>(`/api/photos/${photoId}/like`);
+    const response = await del<{success: boolean, likes: number}>(`/api/photos/${photoId}/like`);
     
-    if (response) {
+    if (response && response.data) {
       // Aktualizace stavu fotografií
       setPhotos(prevPhotos => 
         prevPhotos.map(photo => 
           photo.id === photoId 
-            ? { ...photo, likes: response.data.likes } 
+            ? { ...photo, likes: response.data.likes }
             : photo
         )
       );
-      return response.data;
+      
+      // Vrátíme původní foto s aktualizovaným počtem lajků
+      const updatedPhoto = photos.find(p => p.id === photoId);
+      if (updatedPhoto) {
+        return { ...updatedPhoto, likes: response.data.likes };
+      }
     }
     
     return null;
-  }, [del]);
+  }, [del, photos]);
   
   return {
     photos,
