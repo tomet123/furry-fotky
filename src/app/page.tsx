@@ -14,7 +14,8 @@ import {
   Chip,
   Avatar,
   useMediaQuery,
-  useTheme
+  useTheme,
+  CircularProgress
 } from '@mui/material';
 import Grid from '@mui/material/Grid';
 import Link from 'next/link';
@@ -22,9 +23,14 @@ import Image from 'next/image';
 import FavoriteIcon from '@mui/icons-material/Favorite';
 import ArrowBackIosNewIcon from '@mui/icons-material/ArrowBackIosNew';
 import ArrowForwardIosIcon from '@mui/icons-material/ArrowForwardIos';
-import { usePhotoItems, Photo } from '@/hooks/usePhotoItems';
+import { Photo } from '@/hooks/usePhotoItems';
 import { PhotoCard } from '@/components/photos/PhotoCard';
 import { PhotoDetail } from '@/components/photos/PhotoDetail';
+import { usePhotos } from '@/hooks/usePhotos';
+import { useEvents } from '@/hooks/useEvents';
+import { usePhotographers } from '@/hooks/usePhotographers';
+import { Photographer } from '@/lib/mock-db/photographers';
+import { Event } from '@/lib/mock-db/events';
 
 // Optimalizované načítání obrázků pomocí Next.js Image
 const HeroSection = () => (
@@ -63,15 +69,16 @@ const HeroSection = () => (
     >
       {/* Použití online dummy obrázku pro hero sekci */}
       <Image
-        src="https://picsum.photos/1920/1080"
+        src="/api/image?width=1920&height=1080&seed=hero"
         alt="FurryFotky.cz"
         fill
         style={{
           objectFit: 'cover',
           objectPosition: 'center',
+          opacity: 0.3,
+          zIndex: -1
         }}
-        sizes="100vw"
-        priority // Prioritní načtení pro LCP (Largest Contentful Paint)
+        priority
       />
     </Box>
     <Box
@@ -95,43 +102,25 @@ const HeroSection = () => (
   </Paper>
 );
 
-// Data pro carousel
-const useFeaturedPhotos = () => {
-  return useMemo(() => 
-    Array.from({ length: 10 }, (_, i) => ({
-      id: i + 1,
-      title: `Fotografie ${i + 1}`,
-      event: ['FurCon 2023', 'Winter Photoshoot', 'Furry Meet Praha', 'CzechFur'][i % 4],
-      photographer: ['Jan Novák', 'Petra Dvořáková', 'Martin Svoboda', 'Lucie Malá', 'Tomáš Horák'][i % 5],
-      likes: 150 + Math.floor(Math.random() * 150),
-    }))
-    .sort((a, b) => b.likes - a.likes), // Seřazeno podle počtu like
-  []);
-};
-
 // Carousel komponenta pro nejlajkovanější fotky
 const PhotoCarousel = () => {
-  const allPhotos = usePhotoItems();
-  // Získáme 10 nejlajkovanějších fotografií
-  const photos = useMemo(() => {
-    return [...allPhotos]
-      .sort((a, b) => b.likes - a.likes)
-      .slice(0, 10);
-  }, [allPhotos]);
-  
+  const { photos, loading, error, likePhoto, unlikePhoto } = usePhotos({ 
+    sortBy: 'most_liked',
+    limit: 10
+  });
   const [activeIndex, setActiveIndex] = useState(0);
   const [autoplay, setAutoplay] = useState(true);
   
   // Automatické posouvání
   useEffect(() => {
-    if (!autoplay) return;
+    if (!autoplay || !photos || photos.length === 0) return;
     
     const interval = setInterval(() => {
       setActiveIndex((current) => (current + 1) % photos.length);
     }, 5000);
     
     return () => clearInterval(interval);
-  }, [autoplay, photos.length]);
+  }, [autoplay, photos]);
   
   // Zastavení autoplay při hoveru
   const handleMouseEnter = useCallback(() => setAutoplay(false), []);
@@ -139,17 +128,46 @@ const PhotoCarousel = () => {
   
   // Navigační handlery
   const handlePrev = useCallback(() => {
+    if (!photos || photos.length === 0) return;
     setActiveIndex((current) => (current - 1 + photos.length) % photos.length);
-  }, [photos.length]);
+  }, [photos]);
   
   const handleNext = useCallback(() => {
+    if (!photos || photos.length === 0) return;
     setActiveIndex((current) => (current + 1) % photos.length);
-  }, [photos.length]);
+  }, [photos]);
   
+  // Handlery pro lajkování
+  const handleLike = useCallback(async (photo: Photo) => {
+    await likePhoto(photo.id);
+  }, [likePhoto]);
+  
+  const handleUnlike = useCallback(async (photo: Photo) => {
+    await unlikePhoto(photo.id);
+  }, [unlikePhoto]);
+  
+  // Zobrazíme loader dokud se data nenačtou
+  if (loading) {
+    return (
+      <Box sx={{ display: 'flex', justifyContent: 'center', alignItems: 'center', height: 500 }}>
+        <CircularProgress />
+      </Box>
+    );
+  }
+  
+  // Zobrazíme chybovou hlášku, pokud nastala chyba
+  if (error || !photos || photos.length === 0) {
+    return (
+      <Box sx={{ display: 'flex', justifyContent: 'center', alignItems: 'center', height: 500 }}>
+        <Typography variant="h6" color="error">
+          Nepodařilo se načíst fotografie
+        </Typography>
+      </Box>
+    );
+  }
+
   // Aktuální fotka
   const currentPhoto = photos[activeIndex];
-  
-  if (!currentPhoto) return null;
   
   return (
     <Box>
@@ -195,12 +213,14 @@ const PhotoCarousel = () => {
             photo={currentPhoto}
             mode="inline"
             height={500}
-            showLikes={false}
+            showLikes={true}
             showViewAllButton={false}
             showHeader={false}
             showFooter={false}
             onNext={handleNext}
             onPrevious={handlePrev}
+            onLike={handleLike}
+            onUnlike={handleUnlike}
           />
         </Box>
       </Box>
@@ -208,9 +228,9 @@ const PhotoCarousel = () => {
   );
 };
 
-// Lazy-loaded EventCard komponenta
-const EventCard = ({ item }: { item: number }) => (
-  <Grid item key={item} xs={12} sm={6}>
+// EventCard komponenta
+const EventCard = ({ event }: { event: Event }) => (
+  <Grid item key={event.id} xs={12} sm={6}>
     <Card sx={{ 
       display: 'flex', 
       flexDirection: { xs: 'column', sm: 'row' },
@@ -221,8 +241,8 @@ const EventCard = ({ item }: { item: number }) => (
     }}>
       <Box sx={{ position: 'relative', width: { xs: '100%', sm: 150 }, height: { xs: 200, sm: '100%' } }}>
         <Image
-          src={`https://picsum.photos/400/300?random=${item + 10}`}
-          alt={`Akce ${item}`}
+          src={event.coverImageUrl || `/api/image?width=400&height=300&seed=${event.id}`}
+          alt={event.name}
           fill
           style={{
             objectFit: 'cover',
@@ -232,15 +252,15 @@ const EventCard = ({ item }: { item: number }) => (
       </Box>
       <CardContent>
         <Typography component="h2" variant="h5">
-          Akce {item}
+          {event.name}
         </Typography>
         <Typography variant="subtitle1" color="text.secondary">
-          {new Date().toLocaleDateString('cs-CZ')}
+          {new Date(event.startDate).toLocaleDateString('cs-CZ')}
         </Typography>
         <Typography variant="body2" paragraph>
-          Popis nadcházející akce. Tady budou uvedeny všechny důležité informace o akci.
+          {event.description || 'Popis akce není k dispozici.'}
         </Typography>
-        <Button size="small" component={Link} href={`/events/${item}`}>
+        <Button size="small" component={Link} href={`/events/${event.id}`}>
           Více informací
         </Button>
       </CardContent>
@@ -248,9 +268,9 @@ const EventCard = ({ item }: { item: number }) => (
   </Grid>
 );
 
-// Lazy-loaded PhotographerCard komponenta
-const PhotographerCard = ({ item }: { item: number }) => (
-  <Grid item key={item} xs={12} sm={4}>
+// PhotographerCard komponenta
+const PhotographerCard = ({ photographer }: { photographer: Photographer }) => (
+  <Grid item key={photographer.id} xs={12} sm={4}>
     <Card sx={{ 
       height: '100%',
       transition: 'transform 0.2s',
@@ -259,11 +279,11 @@ const PhotographerCard = ({ item }: { item: number }) => (
         boxShadow: 8,
       }
     }}>
-      <CardActionArea component={Link} href={`/photographers/${item}`}>
+      <CardActionArea component={Link} href={`/photographers/${photographer.id}`}>
         <Box sx={{ position: 'relative', width: '60%', pt: '60%', borderRadius: '50%', margin: '20px auto' }}>
           <Image
-            src={`https://i.pravatar.cc/300?img=${item + 5}`}
-            alt={`Fotograf ${item}`}
+            src={photographer.avatarUrl || `/api/avatar?size=300&seed=${photographer.id}`}
+            alt={photographer.name}
             fill
             style={{
               objectFit: 'cover',
@@ -274,10 +294,10 @@ const PhotographerCard = ({ item }: { item: number }) => (
         </Box>
         <CardContent sx={{ textAlign: 'center' }}>
           <Typography gutterBottom variant="h5" component="h2">
-            Fotograf {item}
+            {photographer.name}
           </Typography>
           <Typography>
-            Krátký popis fotografa a jeho specializace.
+            {photographer.bio || 'Informace o fotografovi nejsou k dispozici.'}
           </Typography>
         </CardContent>
       </CardActionArea>
@@ -286,10 +306,8 @@ const PhotographerCard = ({ item }: { item: number }) => (
 );
 
 export default function Home() {
-  // Memoizace dat pro lepší výkon
-  const photoItems = useMemo(() => [1, 2, 3, 4], []);
-  const eventItems = useMemo(() => [1, 2], []);
-  const photographerItems = useMemo(() => [1, 2, 3], []);
+  const { events, loading: eventsLoading } = useEvents();
+  const { photographers, loading: photographersLoading } = usePhotographers();
 
   return (
     <Box>
@@ -302,9 +320,17 @@ export default function Home() {
           Nadcházející akce
         </Typography>
         <Grid container spacing={4}>
-          {eventItems.map((item) => (
-            <EventCard key={item} item={item} />
-          ))}
+          {eventsLoading ? (
+            <Box sx={{ display: 'flex', justifyContent: 'center', width: '100%', p: 4 }}>
+              <CircularProgress />
+            </Box>
+          ) : events && events.length > 0 ? (
+            events.map((event) => <EventCard key={event.id} event={event} />)
+          ) : (
+            <Box sx={{ width: '100%', p: 4, textAlign: 'center' }}>
+              <Typography>Žádné nadcházející akce</Typography>
+            </Box>
+          )}
         </Grid>
         <Box sx={{ mt: 3, textAlign: 'center' }}>
           <Button 
@@ -324,9 +350,17 @@ export default function Home() {
           Naši fotografové
         </Typography>
         <Grid container spacing={4}>
-          {photographerItems.map((item) => (
-            <PhotographerCard key={item} item={item} />
-          ))}
+          {photographersLoading ? (
+            <Box sx={{ display: 'flex', justifyContent: 'center', width: '100%', p: 4 }}>
+              <CircularProgress />
+            </Box>
+          ) : photographers && photographers.length > 0 ? (
+            photographers.map((photographer) => <PhotographerCard key={photographer.id} photographer={photographer} />)
+          ) : (
+            <Box sx={{ width: '100%', p: 4, textAlign: 'center' }}>
+              <Typography>Žádní fotografové k zobrazení</Typography>
+            </Box>
+          )}
         </Grid>
         <Box sx={{ mt: 3, textAlign: 'center' }}>
           <Button 

@@ -7,6 +7,8 @@ export interface Photo {
   likes: number;
   date: string;
   tags: string[];
+  imageUrl?: string;     // URL pro plnou velikost obrázku
+  thumbnailUrl?: string; // URL pro náhled obrázku
 }
 
 export const EVENTS = [

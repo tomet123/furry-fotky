@@ -1,15 +1,21 @@
 'use client';
 
-import React, { useState, useCallback, useMemo } from 'react';
+import React, { useState, useCallback, useMemo, useEffect } from 'react';
 import { 
   Container, 
   Typography, 
   Box, 
   TextField, 
   useTheme, 
-  SelectChangeEvent 
+  SelectChangeEvent,
+  CircularProgress,
+  Alert
 } from '@mui/material';
-import { usePhotoItems, Photo } from '@/hooks/usePhotoItems';
+import { Photo } from '@/hooks/usePhotoItems'; // Ponecháváme import typu Photo
+import { usePhotos } from '@/hooks/usePhotos'; // Nový hook pro API
+import { useTags } from '@/hooks/useTags'; // Hook pro načtení tagů
+import { usePhotographers } from '@/hooks/usePhotographers'; // Hook pro načtení fotografů
+import { useEvents } from '@/hooks/useEvents'; // Hook pro načtení událostí
 import { PhotoCard } from '@/components/photos/PhotoCard';
 import { PhotoDetail } from '@/components/photos/PhotoDetail';
 import { FilterPanel } from '@/components/photos/FilterPanel';
@@ -18,16 +24,13 @@ import { NoPhotosFound } from '@/components/photos/NoPhotosFound';
 import Grid from '@mui/material/Grid';
 
 export default function Photos() {
-  // Získání dat z hooků
-  const allPhotos = usePhotoItems();
-  
   // Stav stránky
   const [page, setPage] = useState(1);
   const [searchQuery, setSearchQuery] = useState('');
   const [eventFilter, setEventFilter] = useState<string | null>('');
   const [photographerFilter, setPhotographerFilter] = useState<string | null>('');
   const [tagFilter, setTagFilter] = useState<string[]>([]);
-  const [sortBy, setSortBy] = useState('newest'); // 'newest', 'oldest', 'most_liked'
+  const [sortBy, setSortBy] = useState<'newest' | 'oldest' | 'most_liked'>('newest');
   
   // Stav pro detail fotografie
   const [selectedPhoto, setSelectedPhoto] = useState<Photo | null>(null);
@@ -35,6 +38,30 @@ export default function Photos() {
   
   // Počet položek na stránku
   const itemsPerPage = 12;
+  
+  // Získání dat z API pomocí nových hooků
+  const { 
+    photos, 
+    loading: photosLoading, 
+    error: photosError, 
+    totalItems, 
+    totalPages,
+    likePhoto,
+    unlikePhoto 
+  } = usePhotos({
+    page,
+    limit: itemsPerPage,
+    query: searchQuery || undefined,
+    event: eventFilter || undefined,
+    photographer: photographerFilter || undefined,
+    tags: tagFilter.length > 0 ? tagFilter : undefined,
+    sortBy
+  });
+  
+  // Načtení dat pro filtry
+  const { tags, loading: tagsLoading } = useTags();
+  const { photographers, loading: photographersLoading } = usePhotographers();
+  const { events, loading: eventsLoading } = useEvents();
   
   // AKCE
   
@@ -65,106 +92,37 @@ export default function Photos() {
     setPage(1); // Reset stránkování při změně vyhledávání
   }, []);
   
-  // ODVOZENÁ DATA
-  
-  // Získání unikátních hodnot pro filtry
-  const events = useMemo(() => {
-    const uniqueEvents = [...new Set(allPhotos.map(photo => photo.event))];
-    return uniqueEvents.sort();
-  }, [allPhotos]);
-  
-  const photographers = useMemo(() => {
-    const uniquePhotographers = [...new Set(allPhotos.map(photo => photo.photographer))];
-    return uniquePhotographers.sort();
-  }, [allPhotos]);
-  
-  const tags = useMemo(() => {
-    const allTags = allPhotos.flatMap(photo => photo.tags);
-    const uniqueTags = [...new Set(allTags)];
-    return uniqueTags.sort();
-  }, [allPhotos]);
-  
-  // Filtrování fotografií podle filtrů
-  const filteredPhotos = useMemo(() => {
-    return allPhotos.filter(photo => {
-      // Filtr podle vyhledávání (title, description, photographer, event)
-      const matchesSearch = searchQuery 
-        ? photo.photographer.toLowerCase().includes(searchQuery.toLowerCase()) ||
-          photo.event.toLowerCase().includes(searchQuery.toLowerCase()) ||
-          photo.tags.some(tag => tag.toLowerCase().includes(searchQuery.toLowerCase()))
-        : true;
-      
-      // Filtr podle akce
-      const matchesEvent = eventFilter ? photo.event === eventFilter : true;
-      
-      // Filtr podle fotografa
-      const matchesPhotographer = photographerFilter ? photo.photographer === photographerFilter : true;
-      
-      // Filtr podle tagů - fotografie musí obsahovat všechny vybrané tagy
-      const matchesTags = tagFilter.length > 0 
-        ? tagFilter.every(tag => photo.tags.includes(tag))
-        : true;
-      
-      return matchesSearch && matchesEvent && matchesPhotographer && matchesTags;
-    });
-  }, [allPhotos, searchQuery, eventFilter, photographerFilter, tagFilter]);
-  
-  // Seřazení filtrovaných fotografií
-  const sortedPhotos = useMemo(() => {
-    return [...filteredPhotos].sort((a, b) => {
-      switch (sortBy) {
-        case 'newest':
-          return new Date(b.date).getTime() - new Date(a.date).getTime();
-        case 'oldest':
-          return new Date(a.date).getTime() - new Date(b.date).getTime();
-        case 'most_liked':
-          return b.likes - a.likes;
-        default:
-          return 0;
-      }
-    });
-  }, [filteredPhotos, sortBy]);
-  
   // Navigace mezi fotografiemi v detailu
   const handleNextPhoto = useCallback(() => {
     if (!selectedPhoto) return;
     
-    const currentIndex = sortedPhotos.findIndex(photo => photo.id === selectedPhoto.id);
-    if (currentIndex === -1 || currentIndex === sortedPhotos.length - 1) return;
+    const currentIndex = photos.findIndex(photo => photo.id === selectedPhoto.id);
+    if (currentIndex === -1 || currentIndex === photos.length - 1) return;
     
-    setSelectedPhoto(sortedPhotos[currentIndex + 1]);
-  }, [selectedPhoto, sortedPhotos]);
+    setSelectedPhoto(photos[currentIndex + 1]);
+  }, [selectedPhoto, photos]);
 
   const handlePreviousPhoto = useCallback(() => {
     if (!selectedPhoto) return;
     
-    const currentIndex = sortedPhotos.findIndex(photo => photo.id === selectedPhoto.id);
+    const currentIndex = photos.findIndex(photo => photo.id === selectedPhoto.id);
     if (currentIndex <= 0) return;
     
-    setSelectedPhoto(sortedPhotos[currentIndex - 1]);
-  }, [selectedPhoto, sortedPhotos]);
-  
-  // Výpočet stránkovaných fotografií
-  const paginatedPhotos = useMemo(() => {
-    const startIndex = (page - 1) * itemsPerPage;
-    return sortedPhotos.slice(startIndex, startIndex + itemsPerPage);
-  }, [sortedPhotos, page, itemsPerPage]);
-  
-  // Výpočet celkového počtu stránek
-  const pageCount = Math.ceil(sortedPhotos.length / itemsPerPage);
+    setSelectedPhoto(photos[currentIndex - 1]);
+  }, [selectedPhoto, photos]);
   
   // Určení, zda má fotografie předchozí a následující
   const hasNextPhoto = useMemo(() => {
     if (!selectedPhoto) return false;
-    const currentIndex = sortedPhotos.findIndex(photo => photo.id === selectedPhoto.id);
-    return currentIndex !== -1 && currentIndex < sortedPhotos.length - 1;
-  }, [selectedPhoto, sortedPhotos]);
+    const currentIndex = photos.findIndex(photo => photo.id === selectedPhoto.id);
+    return currentIndex !== -1 && currentIndex < photos.length - 1;
+  }, [selectedPhoto, photos]);
   
   const hasPreviousPhoto = useMemo(() => {
     if (!selectedPhoto) return false;
-    const currentIndex = sortedPhotos.findIndex(photo => photo.id === selectedPhoto.id);
+    const currentIndex = photos.findIndex(photo => photo.id === selectedPhoto.id);
     return currentIndex > 0;
-  }, [selectedPhoto, sortedPhotos]);
+  }, [selectedPhoto, photos]);
   
   // Handler pro změnu filtrů
   const handleEventChange = useCallback((_event: React.SyntheticEvent, newValue: string | null) => {
@@ -183,7 +141,7 @@ export default function Photos() {
   }, []);
   
   const handleSortChange = useCallback((event: SelectChangeEvent) => {
-    setSortBy(event.target.value);
+    setSortBy(event.target.value as 'newest' | 'oldest' | 'most_liked');
     setPage(1); // Reset stránkování při změně řazení
   }, []);
   
@@ -196,6 +154,15 @@ export default function Photos() {
     });
   }, []);
   
+  // Funkce pro lajkování fotografií
+  const handleLikePhoto = useCallback(async (photo: Photo) => {
+    await likePhoto(photo.id);
+  }, [likePhoto]);
+  
+  const handleUnlikePhoto = useCallback(async (photo: Photo) => {
+    await unlikePhoto(photo.id);
+  }, [unlikePhoto]);
+  
   // RENDER
   return (
     <Container maxWidth="lg" sx={{ py: 4 }}>
@@ -205,9 +172,9 @@ export default function Photos() {
       
       {/* Filtrování */}
       <FilterPanel 
-        events={events}
-        photographers={photographers}
-        tags={tags}
+        events={events?.map(e => e.name) || []}
+        photographers={photographers?.map(p => p.name) || []}
+        tags={tags || []}
         eventFilter={eventFilter}
         photographerFilter={photographerFilter}
         tagFilter={tagFilter}
@@ -216,16 +183,33 @@ export default function Photos() {
         onPhotographerChange={handlePhotographerChange}
         onTagChange={handleTagChange}
         onSortChange={handleSortChange}
+        loading={tagsLoading || photographersLoading || eventsLoading}
       />
       
+      {/* Zpracování chyby při načítání */}
+      {photosError && (
+        <Alert severity="error" sx={{ mb: 3 }}>
+          Došlo k chybě při načítání fotografií: {photosError}
+        </Alert>
+      )}
+      
       {/* Obsah stránky */}
-      {sortedPhotos.length > 0 ? (
+      {photosLoading ? (
+        <Box sx={{ display: 'flex', justifyContent: 'center', my: 5 }}>
+          <CircularProgress />
+        </Box>
+      ) : photos.length > 0 ? (
         <>
           {/* Grid s fotografiemi */}
           <Grid container spacing={2.5}>
-            {paginatedPhotos.map((photo) => (
+            {photos.map((photo) => (
               <Grid item key={photo.id} xs={12} sm={6} md={4} lg={3}>
-                <PhotoCard photo={photo} onClick={handleOpenDetail} />
+                <PhotoCard 
+                  photo={photo} 
+                  onClick={handleOpenDetail}
+                  onLike={handleLikePhoto}
+                  onUnlike={handleUnlikePhoto}
+                />
               </Grid>
             ))}
           </Grid>
@@ -233,8 +217,8 @@ export default function Photos() {
           {/* Stránkování */}
           <PhotoPagination 
             page={page}
-            totalPages={pageCount}
-            totalItems={sortedPhotos.length}
+            totalPages={totalPages}
+            totalItems={totalItems}
             onPageChange={handlePageChange}
           />
         </>
@@ -249,6 +233,8 @@ export default function Photos() {
         onClose={handleCloseDetail}
         onNext={hasNextPhoto ? handleNextPhoto : undefined}
         onPrevious={hasPreviousPhoto ? handlePreviousPhoto : undefined}
+        onLike={handleLikePhoto}
+        onUnlike={handleUnlikePhoto}
       />
     </Container>
   );

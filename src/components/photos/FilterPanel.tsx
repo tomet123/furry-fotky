@@ -8,7 +8,8 @@ import {
   TextField, 
   SelectChangeEvent,
   Autocomplete,
-  useTheme
+  useTheme,
+  CircularProgress
 } from '@mui/material';
 import Grid from '@mui/material/Grid';
 import SearchIcon from '@mui/icons-material/Search';
@@ -22,6 +23,7 @@ interface FilterPanelProps {
   photographerFilter: string | null;
   tagFilter: string[];
   sortBy: string;
+  loading?: boolean;
   onEventChange: (event: React.SyntheticEvent, newValue: string | null) => void;
   onPhotographerChange: (event: React.SyntheticEvent, newValue: string | null) => void;
   onTagChange: (event: React.SyntheticEvent, newValue: string[]) => void;
@@ -39,6 +41,7 @@ export const FilterPanel: React.FC<FilterPanelProps> = ({
   photographerFilter,
   tagFilter,
   sortBy,
+  loading = false,
   onEventChange,
   onPhotographerChange,
   onTagChange,
@@ -66,7 +69,22 @@ export const FilterPanel: React.FC<FilterPanelProps> = ({
             options={photographers}
             value={photographerFilter}
             onChange={onPhotographerChange}
-            renderInput={(params) => <TextField {...params} label="Fotograf" />}
+            renderInput={(params) => (
+              <TextField 
+                {...params} 
+                label="Fotograf" 
+                InputProps={{
+                  ...params.InputProps,
+                  endAdornment: (
+                    <>
+                      {loading ? <CircularProgress color="inherit" size={20} /> : null}
+                      {params.InputProps.endAdornment}
+                    </>
+                  ),
+                }}
+              />
+            )}
+            loading={loading}
             sx={{
               '& .MuiOutlinedInput-root': {
                 borderRadius: 2,
@@ -82,7 +100,22 @@ export const FilterPanel: React.FC<FilterPanelProps> = ({
             options={events}
             value={eventFilter}
             onChange={onEventChange}
-            renderInput={(params) => <TextField {...params} label="Akce" />}
+            renderInput={(params) => (
+              <TextField 
+                {...params} 
+                label="Akce"
+                InputProps={{
+                  ...params.InputProps,
+                  endAdornment: (
+                    <>
+                      {loading ? <CircularProgress color="inherit" size={20} /> : null}
+                      {params.InputProps.endAdornment}
+                    </>
+                  ),
+                }}
+              />
+            )}
+            loading={loading}
             sx={{
               '& .MuiOutlinedInput-root': {
                 borderRadius: 2,
@@ -100,7 +133,22 @@ export const FilterPanel: React.FC<FilterPanelProps> = ({
             options={tags}
             value={tagFilter}
             onChange={onTagChange}
-            renderInput={(params) => <TextField {...params} label="Tagy" />}
+            renderInput={(params) => (
+              <TextField 
+                {...params} 
+                label="Tagy"
+                InputProps={{
+                  ...params.InputProps,
+                  endAdornment: (
+                    <>
+                      {loading ? <CircularProgress color="inherit" size={20} /> : null}
+                      {params.InputProps.endAdornment}
+                    </>
+                  ),
+                }}
+              />
+            )}
+            loading={loading}
             sx={{
               '& .MuiOutlinedInput-root': {
                 borderRadius: 2,

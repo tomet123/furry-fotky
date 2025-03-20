@@ -32,7 +32,7 @@ export default function NotFound() {
           }}
         >
           <Image
-            src="https://picsum.photos/800/600?random=404"
+            src="/api/image?width=800&height=600&seed=404"
             alt="Ztracená fotka"
             fill
             style={{ objectFit: 'cover', borderRadius: 8 }}

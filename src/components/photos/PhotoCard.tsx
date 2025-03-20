@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { useState } from 'react';
 import { 
   Card, 
   CardActionArea, 
@@ -9,22 +9,59 @@ import {
   Chip, 
   Stack, 
   useTheme,
-  useMediaQuery
+  useMediaQuery,
+  IconButton,
+  Tooltip
 } from '@mui/material';
 import FavoriteIcon from '@mui/icons-material/Favorite';
+import FavoriteBorderIcon from '@mui/icons-material/FavoriteBorder';
 import { Photo } from '@/hooks/usePhotoItems';
 
 interface PhotoCardProps {
   photo: Photo;
   onClick: (photo: Photo) => void;
+  onLike?: (photo: Photo) => Promise<void>;
+  onUnlike?: (photo: Photo) => Promise<void>;
 }
 
 /**
  * Komponenta pro zobrazení karty fotografie v seznamu
  */
-export const PhotoCard: React.FC<PhotoCardProps> = ({ photo, onClick }) => {
+export const PhotoCard: React.FC<PhotoCardProps> = ({ 
+  photo, 
+  onClick,
+  onLike,
+  onUnlike 
+}) => {
   const theme = useTheme();
   const isSmall = useMediaQuery(theme.breakpoints.down('sm'));
+  const [liked, setLiked] = useState(false);
+  const [likeCount, setLikeCount] = useState(photo.likes);
+  const [likeInProgress, setLikeInProgress] = useState(false);
+
+  const handleLikeClick = async (e: React.MouseEvent) => {
+    e.stopPropagation(); // Zabránit propagaci události na CardActionArea
+    
+    if (likeInProgress || !onLike || !onUnlike) return;
+    
+    setLikeInProgress(true);
+    
+    try {
+      if (liked) {
+        await onUnlike(photo);
+        setLikeCount(prev => Math.max(prev - 1, 0));
+        setLiked(false);
+      } else {
+        await onLike(photo);
+        setLikeCount(prev => prev + 1);
+        setLiked(true);
+      }
+    } catch (error) {
+      console.error('Chyba při lajkování:', error);
+    } finally {
+      setLikeInProgress(false);
+    }
+  };
 
   return (
     <Card 
@@ -65,7 +102,7 @@ export const PhotoCard: React.FC<PhotoCardProps> = ({ photo, onClick }) => {
         >
           <Box
             component="img"
-            src={`https://picsum.photos/600/450?random=${photo.id}`}
+            src={photo.thumbnailUrl || `/api/image?width=600&height=450&seed=${photo.id}`}
             loading="lazy"
             sx={{
               position: 'absolute',
@@ -97,9 +134,22 @@ export const PhotoCard: React.FC<PhotoCardProps> = ({ photo, onClick }) => {
             gap: 0.5,
             zIndex: 2
           }}>
-            <FavoriteIcon fontSize="small" />
+            <Tooltip title={liked ? 'Odebrat z oblíbených' : 'Přidat do oblíbených'}>
+              <IconButton 
+                size="small" 
+                sx={{ 
+                  color: 'white', 
+                  p: 0, 
+                  '&:hover': { color: '#ff6b6b' } 
+                }}
+                onClick={handleLikeClick}
+                disabled={likeInProgress || (!onLike && !onUnlike)}
+              >
+                {liked ? <FavoriteIcon fontSize="small" color="error" /> : <FavoriteIcon fontSize="small" />}
+              </IconButton>
+            </Tooltip>
             <Typography variant="body2" sx={{ fontWeight: 'bold' }}>
-              {photo.likes}
+              {likeCount}
             </Typography>
           </Box>
         </Box>

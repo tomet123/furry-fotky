@@ -10,10 +10,12 @@ import {
   useMediaQuery, 
   useTheme,
   Paper,
-  Button
+  Button,
+  Tooltip
 } from '@mui/material';
 import CloseIcon from '@mui/icons-material/Close';
 import FavoriteIcon from '@mui/icons-material/Favorite';
+import FavoriteBorderIcon from '@mui/icons-material/FavoriteBorder';
 import { Photo } from '@/hooks/usePhotoItems';
 import Link from 'next/link';
 
@@ -52,6 +54,8 @@ interface PhotoDetailProps {
   onClose?: () => void;
   onNext?: () => void;
   onPrevious?: () => void;
+  onLike?: (photo: Photo) => Promise<void>;
+  onUnlike?: (photo: Photo) => Promise<void>;
   mode?: "dialog" | "inline";
   height?: number | string;
   showLikes?: boolean;
@@ -70,6 +74,8 @@ export const PhotoDetail: React.FC<PhotoDetailProps> = ({
   onClose = () => {},
   onNext,
   onPrevious,
+  onLike,
+  onUnlike,
   mode = "dialog",
   height = 500,
   showLikes = true,
@@ -84,12 +90,23 @@ export const PhotoDetail: React.FC<PhotoDetailProps> = ({
   const [fitMode, setFitMode] = useState<'contain' | 'cover'>('contain');
   const [loading, setLoading] = useState(true);
   const [imgDimensions, setImgDimensions] = useState({ width: 0, height: 0 });
+  const [liked, setLiked] = useState(false);
+  const [likeCount, setLikeCount] = useState(photo?.likes || 0);
+  const [likeInProgress, setLikeInProgress] = useState(false);
   const windowSize = useWindowSize();
 
   // Pokud nemáme foto, nezobrazujeme nic
   if (!photo) {
     return null;
   }
+
+  // Aktualizujeme počet lajků při změně fotografie
+  useEffect(() => {
+    if (photo) {
+      setLikeCount(photo.likes);
+      setLiked(false); // Reset stavu like při změně fotografie
+    }
+  }, [photo]);
 
   const toggleFitMode = () => {
     setFitMode(prev => prev === 'contain' ? 'cover' : 'contain');
@@ -122,6 +139,32 @@ export const PhotoDetail: React.FC<PhotoDetailProps> = ({
       setTimeout(() => {
         window.dispatchEvent(new Event('resize'));
       }, 50);
+    }
+  };
+
+  const handleLikeClick = async () => {
+    if (likeInProgress || !photo || (!onLike && !onUnlike)) return;
+    
+    setLikeInProgress(true);
+    
+    try {
+      if (liked) {
+        if (onUnlike) {
+          await onUnlike(photo);
+          setLikeCount(prev => Math.max(prev - 1, 0));
+          setLiked(false);
+        }
+      } else {
+        if (onLike) {
+          await onLike(photo);
+          setLikeCount(prev => prev + 1);
+          setLiked(true);
+        }
+      }
+    } catch (error) {
+      console.error('Chyba při lajkování:', error);
+    } finally {
+      setLikeInProgress(false);
     }
   };
 
@@ -197,7 +240,7 @@ export const PhotoDetail: React.FC<PhotoDetailProps> = ({
         {/* Samotná fotografie */}
         <Box
           component="img"
-          src={`https://picsum.photos/1920/1080?random=${photo.id + 50}`}
+          src={photo.imageUrl || `/api/image?width=1920&height=1080&seed=${photo.id + 50}`}
           onLoad={handleImageLoad}
           onError={handleImageError}
           sx={{
@@ -247,9 +290,27 @@ export const PhotoDetail: React.FC<PhotoDetailProps> = ({
                     borderRadius: 2,
                     bgcolor: 'rgba(0, 0, 0, 0.3)'
                   }}>
-                    <FavoriteIcon fontSize="small" sx={{ color: 'white' }} />
+                    <Tooltip title={liked ? 'Odebrat lajku' : 'Přidat lajku'}>
+                      <IconButton
+                        onClick={handleLikeClick}
+                        aria-label={liked ? 'Odebrat lajku' : 'Přidat lajku'}
+                        sx={{
+                          color: 'white',
+                          bgcolor: 'rgba(0, 0, 0, 0.3)',
+                          '&:hover': { bgcolor: 'rgba(0, 0, 0, 0.5)' },
+                          p: 1,
+                          height: 32,
+                          width: 32
+                        }}
+                        size="small"
+                      >
+                        <Box component="span" sx={{ fontSize: '1.2rem' }}>
+                          {liked ? <FavoriteIcon /> : <FavoriteBorderIcon />}
+                        </Box>
+                      </IconButton>
+                    </Tooltip>
                     <Typography sx={{ fontWeight: 'bold', color: 'white' }}>
-                      {photo.likes}
+                      {likeCount}
                     </Typography>
                   </Box>
                 )}
@@ -288,9 +349,27 @@ export const PhotoDetail: React.FC<PhotoDetailProps> = ({
                 borderRadius: 2,
                 bgcolor: 'rgba(0, 0, 0, 0.3)'
               }}>
-                <FavoriteIcon fontSize="small" sx={{ color: 'white' }} />
+                <Tooltip title={liked ? 'Odebrat lajku' : 'Přidat lajku'}>
+                  <IconButton
+                    onClick={handleLikeClick}
+                    aria-label={liked ? 'Odebrat lajku' : 'Přidat lajku'}
+                    sx={{
+                      color: 'white',
+                      bgcolor: 'rgba(0, 0, 0, 0.3)',
+                      '&:hover': { bgcolor: 'rgba(0, 0, 0, 0.5)' },
+                      p: 1,
+                      height: 32,
+                      width: 32
+                    }}
+                    size="small"
+                  >
+                    <Box component="span" sx={{ fontSize: '1.2rem' }}>
+                      {liked ? <FavoriteIcon /> : <FavoriteBorderIcon />}
+                    </Box>
+                  </IconButton>
+                </Tooltip>
                 <Typography sx={{ fontWeight: 'bold', color: 'white' }}>
-                  {photo.likes}
+                  {likeCount}
                 </Typography>
               </Box>
             )}

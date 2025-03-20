@@ -71,11 +71,10 @@ const UpcomingEventCard = ({ event }: { event: any }) => (
         <Grid item xs={12} md={4}>
           <Box sx={{ position: 'relative', height: { xs: 200, md: '100%' }, minHeight: { md: 250 } }}>
             <Image
-              src={`https://picsum.photos/800/600?random=${event.id + 50}`}
+              src={`/api/image?width=800&height=600&seed=${event.id + 50}`}
               alt={event.title}
               fill
               style={{ objectFit: 'cover' }}
-              sizes="(max-width: 600px) 100vw, (max-width: 960px) 50vw, 33vw"
             />
           </Box>
         </Grid>
@@ -145,11 +144,10 @@ const PastEventCard = ({ event }: { event: any }) => (
     }}>
       <Box sx={{ position: 'relative', height: 140 }}>
         <Image
-          src={`https://picsum.photos/600/300?random=${event.id + 80}`}
+          src={`/api/image?width=600&height=300&seed=${event.id + 80}`}
           alt={event.title}
           fill
           style={{ objectFit: 'cover' }}
-          sizes="(max-width: 600px) 100vw, 50vw"
         />
       </Box>
       <CardContent>
