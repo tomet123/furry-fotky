@@ -3,7 +3,7 @@ import type { NextConfig } from "next";
 const nextConfig: NextConfig = {
   /* config options here */
   images: {
-    domains: ['localhost', 'picsum.photos', 'i.pravatar.cc'],
+    domains: ['localhost'],
     formats: ['image/avif', 'image/webp'],
     minimumCacheTTL: 60,
   },

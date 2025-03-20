@@ -56,7 +56,7 @@ const generateImageUrls = (photo: Photo): Photo => {
 };
 
 // Mockové fotografie
-export const photos: Photo[] = Array.from({ length: 50 }, (_, i) => ({
+export const photos: Photo[] = Array.from({ length: 100 }, (_, i) => ({
   id: i + 1,
   event: EVENTS[Math.floor(Math.random() * EVENTS.length)],
   photographer: PHOTOGRAPHERS[Math.floor(Math.random() * PHOTOGRAPHERS.length)],
