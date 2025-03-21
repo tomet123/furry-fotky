@@ -1,65 +1,27 @@
 'use client';
 
-import React from 'react';
-import { useMemo } from 'react';
-import { Typography, Box, Card, CardContent, Divider, Chip, Paper, Button } from '@mui/material';
+import React, { useState, useEffect } from 'react';
+import { 
+  Typography, 
+  Box, 
+  Card, 
+  CardContent, 
+  Divider, 
+  Paper, 
+  Button,
+  TextField,
+  InputAdornment,
+  CircularProgress,
+  Pagination
+} from '@mui/material';
 import Link from 'next/link';
 import Image from 'next/image';
 import Grid from '@mui/material/Grid';
-
-// Simulovaná data pro akce - memoizovaná
-const useEvents = () => {
-  return useMemo(() => [
-    {
-      id: 1,
-      title: 'Furry Meet Praha',
-      date: '2023-10-15',
-      location: 'Praha, Česká republika',
-      description: 'Pravidelné setkání české furry komunity v Praze. Přijďte se potkat s přáteli, užít si zábavu a pořídit krásné fotografie.',
-      tags: ['Praha', 'Setkání', 'Kostýmy'],
-      upcoming: true,
-    },
-    {
-      id: 2,
-      title: 'FurCon 2023',
-      date: '2023-11-20',
-      location: 'Brno, Česká republika',
-      description: 'Největší furry convention v České republice. Dva dny plné zábavy, workshopů, panelů a fotografování. Nenechte si ujít tuto jedinečnou událost!',
-      tags: ['Convention', 'Brno', 'Kostýmy', 'Workshopy'],
-      upcoming: true,
-    },
-    {
-      id: 3,
-      title: 'Winter Furry Photoshoot',
-      date: '2023-12-10',
-      location: 'Krkonoše, Česká republika',
-      description: 'Speciální zimní fotografické setkání v Krkonoších. Přijďte si užít profesionální fotografování v zimní krajině.',
-      tags: ['Foto', 'Zima', 'Outdoor'],
-      upcoming: true,
-    },
-    {
-      id: 4,
-      title: 'Letní furry piknik',
-      date: '2023-06-25',
-      location: 'Průhonice, Česká republika',
-      description: 'Letní setkání venku pod širým nebem. Grilování, hry a fotografování v přírodě.',
-      tags: ['Piknik', 'Léto', 'Outdoor'],
-      upcoming: false,
-    },
-    {
-      id: 5,
-      title: 'CzechFur 2023',
-      date: '2023-08-05',
-      location: 'Plzeň, Česká republika',
-      description: 'Regionální setkání zaměřené na fursuit fotografování a networking.',
-      tags: ['Plzeň', 'Fursuit', 'Foto'],
-      upcoming: false,
-    },
-  ], []);
-};
+import SearchIcon from '@mui/icons-material/Search';
+import { useEvents, Event } from '@/hooks/useEvents';
 
 // Optimalizovaná komponenta pro nadcházející události
-const UpcomingEventCard = ({ event }: { event: any }) => (
+const UpcomingEventCard = ({ event }: { event: Event }) => (
   <Grid item key={event.id} xs={12}>
     <Card sx={{ 
       transition: 'all 0.2s',
@@ -72,7 +34,7 @@ const UpcomingEventCard = ({ event }: { event: any }) => (
           <Box sx={{ position: 'relative', height: { xs: 200, md: '100%' }, minHeight: { md: 250 } }}>
             <Image
               src={`/api/image?width=800&height=600&seed=${event.id + 50}`}
-              alt={event.title}
+              alt={event.name}
               fill
               loading="lazy"
               style={{ objectFit: 'cover' }}
@@ -82,7 +44,7 @@ const UpcomingEventCard = ({ event }: { event: any }) => (
         <Grid item xs={12} md={8}>
           <CardContent>
             <Typography component="h2" variant="h5" color="primary.light">
-              {event.title}
+              {event.name}
             </Typography>
             <Box sx={{ display: 'flex', alignItems: 'center', mt: 1, mb: 2 }}>
               <Typography variant="subtitle1" color="text.secondary" sx={{ display: 'flex', alignItems: 'center', mr: 2 }}>
@@ -91,26 +53,14 @@ const UpcomingEventCard = ({ event }: { event: any }) => (
               </Typography>
               <Typography variant="subtitle1" color="text.secondary" sx={{ display: 'flex', alignItems: 'center' }}>
                 <Box component="span" sx={{ mr: 1, fontSize: '18px' }}>📍</Box>
-                {event.location}
+                {event.location || 'Neznámé místo'}
               </Typography>
             </Box>
-            <Typography variant="body1" paragraph>
-              {event.description}
-            </Typography>
-            <Box sx={{ mt: 2, mb: 2 }}>
-              {event.tags.map((tag: string) => (
-                <Chip 
-                  key={tag} 
-                  label={tag} 
-                  sx={{ 
-                    mr: 1, 
-                    mb: 1,
-                    bgcolor: 'rgba(144, 202, 249, 0.08)',
-                    color: 'primary.light' 
-                  }} 
-                />
-              ))}
-            </Box>
+            {event.description && (
+              <Typography variant="body1" paragraph>
+                {event.description}
+              </Typography>
+            )}
             <Button 
               variant="contained" 
               component={Link} 
@@ -133,7 +83,7 @@ const UpcomingEventCard = ({ event }: { event: any }) => (
 );
 
 // Optimalizovaná komponenta pro minulé události
-const PastEventCard = ({ event }: { event: any }) => (
+const PastEventCard = ({ event }: { event: Event }) => (
   <Grid item key={event.id} xs={12} sm={6}>
     <Card variant="outlined" sx={{ 
       height: '100%',
@@ -146,7 +96,7 @@ const PastEventCard = ({ event }: { event: any }) => (
       <Box sx={{ position: 'relative', height: 140 }}>
         <Image
           src={`/api/image?width=600&height=300&seed=${event.id + 80}`}
-          alt={event.title}
+          alt={event.name}
           fill
           loading="lazy"
           style={{ objectFit: 'cover' }}
@@ -154,23 +104,12 @@ const PastEventCard = ({ event }: { event: any }) => (
       </Box>
       <CardContent>
         <Typography component="h2" variant="h6" color="primary.light">
-          {event.title}
+          {event.name}
         </Typography>
         <Typography variant="body2" color="text.secondary" sx={{ mb: 1 }}>
-          {formatDate(event.date)} | {event.location}
+          {formatDate(event.date)} | {event.location || 'Neznámé místo'}
         </Typography>
         <Divider sx={{ my: 1 }} />
-        <Box sx={{ mt: 1, mb: 1 }}>
-          {event.tags.map((tag: string) => (
-            <Chip 
-              key={tag} 
-              label={tag} 
-              size="small" 
-              variant="outlined" 
-              sx={{ mr: 0.5, mb: 0.5 }} 
-            />
-          ))}
-        </Box>
         <Button 
           size="small" 
           component={Link} 
@@ -191,56 +130,156 @@ const formatDate = (dateString: string) => {
 };
 
 export default function Events() {
-  const events = useEvents();
+  // Stav pro vyhledávání a stránkování
+  const [searchQuery, setSearchQuery] = useState('');
+  const [page, setPage] = useState(1);
+  const limit = 6; // Počet událostí na stránku
+
+  // Načtení událostí z API
+  const { events, loading, error, totalItems } = useEvents({
+    query: searchQuery,
+    page,
+    limit
+  });
+
+  // Výpočet celkového počtu stránek
+  const totalPages = Math.ceil((totalItems || 0) / limit);
+
+  // Obnovení na první stránku při změně vyhledávacího dotazu
+  useEffect(() => {
+    setPage(1);
+  }, [searchQuery]);
+
+  // Funkce pro zpracování změny stránky
+  const handlePageChange = (_event: React.ChangeEvent<unknown>, value: number) => {
+    setPage(value);
+    // Scroll nahoru
+    window.scrollTo({
+      top: 0,
+      behavior: 'smooth'
+    });
+  };
   
   // Rozdělení akcí na nadcházející a minulé
-  const upcomingEvents = useMemo(() => events.filter(event => event.upcoming), [events]);
-  const pastEvents = useMemo(() => events.filter(event => !event.upcoming), [events]);
+  const now = new Date();
+  const upcomingEvents = events ? events.filter(event => new Date(event.date) >= now) : [];
+  const pastEvents = events ? events.filter(event => new Date(event.date) < now) : [];
 
   return (
-    <Box>
+    <Box sx={{ maxWidth: 'lg', mx: 'auto', px: 3, py: 4 }}>
       <Typography variant="h3" component="h1" gutterBottom color="primary.light">
         Akce
       </Typography>
       
-      {/* Nadcházející akce */}
-      <Box sx={{ mb: 6 }}>
-        <Typography variant="h4" gutterBottom sx={{ 
-          display: 'flex', 
-          alignItems: 'center',
-          color: 'primary.light',
-          pb: 1,
-          borderBottom: '1px solid',
-          borderColor: 'divider'
-        }}>
-          <Box component="span" sx={{ mr: 1, fontSize: '24px' }}>📅</Box> 
-          Nadcházející akce
-        </Typography>
-        <Grid container spacing={3}>
-          {upcomingEvents.map((event) => (
-            <UpcomingEventCard key={event.id} event={event} />
-          ))}
-        </Grid>
+      {/* Vyhledávání */}
+      <Box sx={{ mb: 4 }}>
+        <TextField
+          fullWidth
+          label="Hledat akci podle názvu nebo místa"
+          variant="outlined"
+          value={searchQuery}
+          onChange={(e) => setSearchQuery(e.target.value)}
+          InputProps={{
+            startAdornment: (
+              <InputAdornment position="start">
+                <SearchIcon />
+              </InputAdornment>
+            ),
+          }}
+        />
       </Box>
+
+      {/* Loading stav */}
+      {loading && (
+        <Box sx={{ display: 'flex', justifyContent: 'center', my: 4 }}>
+          <CircularProgress />
+        </Box>
+      )}
+
+      {/* Chybová zpráva */}
+      {error && (
+        <Box sx={{ textAlign: 'center', my: 4 }}>
+          <Typography variant="h6" color="error">
+            Došlo k chybě při načítání akcí.
+          </Typography>
+          <Typography variant="body1" color="text.secondary">
+            {error}
+          </Typography>
+        </Box>
+      )}
       
-      {/* Minulé akce */}
-      <Box>
-        <Typography variant="h4" gutterBottom sx={{ 
-          color: 'primary.light',
-          pb: 1,
-          borderBottom: '1px solid',
-          borderColor: 'divider'
-        }}>
-          Minulé akce
-        </Typography>
-        <Paper sx={{ p: 3, bgcolor: 'background.paper', boxShadow: 2 }}>
-          <Grid container spacing={3}>
-            {pastEvents.map((event) => (
-              <PastEventCard key={event.id} event={event} />
-            ))}
-          </Grid>
-        </Paper>
-      </Box>
+      {/* Zobrazení obsahu, když nejsou načítána data */}
+      {!loading && !error && events && (
+        <>
+          {/* Nadcházející akce */}
+          {upcomingEvents.length > 0 && (
+            <Box sx={{ mb: 6 }}>
+              <Typography variant="h4" gutterBottom sx={{ 
+                display: 'flex', 
+                alignItems: 'center',
+                color: 'primary.light',
+                pb: 1,
+                borderBottom: '1px solid',
+                borderColor: 'divider'
+              }}>
+                <Box component="span" sx={{ mr: 1, fontSize: '24px' }}>📅</Box> 
+                Nadcházející akce
+              </Typography>
+              <Grid container spacing={3}>
+                {upcomingEvents.map((event) => (
+                  <UpcomingEventCard key={event.id} event={event} />
+                ))}
+              </Grid>
+            </Box>
+          )}
+          
+          {/* Minulé akce */}
+          {pastEvents.length > 0 && (
+            <Box>
+              <Typography variant="h4" gutterBottom sx={{ 
+                color: 'primary.light',
+                pb: 1,
+                borderBottom: '1px solid',
+                borderColor: 'divider'
+              }}>
+                Minulé akce
+              </Typography>
+              <Paper sx={{ p: 3, bgcolor: 'background.paper', boxShadow: 2 }}>
+                <Grid container spacing={3}>
+                  {pastEvents.map((event) => (
+                    <PastEventCard key={event.id} event={event} />
+                  ))}
+                </Grid>
+              </Paper>
+            </Box>
+          )}
+
+          {/* Zpráva, pokud nejsou nalezeny žádné akce */}
+          {events.length === 0 && (
+            <Box sx={{ textAlign: 'center', my: 4 }}>
+              <Typography variant="h6">
+                Nebyly nalezeny žádné akce odpovídající vašemu vyhledávání.
+              </Typography>
+              <Typography variant="body1" color="text.secondary">
+                Zkuste upravit vyhledávací dotaz nebo přijďte později.
+              </Typography>
+            </Box>
+          )}
+
+          {/* Stránkování */}
+          {events.length > 0 && totalPages > 1 && (
+            <Box sx={{ display: 'flex', justifyContent: 'center', mt: 4 }}>
+              <Pagination 
+                count={totalPages} 
+                page={page} 
+                onChange={handlePageChange} 
+                color="primary" 
+                size="large"
+              />
+            </Box>
+          )}
+        </>
+      )}
     </Box>
   );
 } 

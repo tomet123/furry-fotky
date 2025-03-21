@@ -5,6 +5,7 @@ import ThemeRegistry from "@/components/ThemeRegistry";
 import Header from "@/components/ui/Header";
 import Footer from "@/components/ui/Footer";
 import { Box, Container } from "@mui/material";
+import { AuthProvider } from "@/components/context/AuthContext";
 
 const roboto = Roboto({
   weight: ['300', '400', '500', '700'],
@@ -24,29 +25,31 @@ export default function RootLayout({
 }>) {
   return (
     <html lang="cs">
-      <body className={roboto.className}>
+      <body className={roboto.className} suppressHydrationWarning>
         <ThemeRegistry>
-          <Box
-            sx={{
-              display: 'flex',
-              flexDirection: 'column',
-              minHeight: '100vh',
-            }}
-          >
-            <Header />
-            <Container
-              component="main"
+          <AuthProvider>
+            <Box
               sx={{
-                flexGrow: 1,
-                py: 4,
                 display: 'flex',
                 flexDirection: 'column',
+                minHeight: '100vh',
               }}
             >
-              {children}
-            </Container>
-            <Footer />
-          </Box>
+              <Header />
+              <Container
+                component="main"
+                sx={{
+                  flexGrow: 1,
+                  py: 4,
+                  display: 'flex',
+                  flexDirection: 'column',
+                }}
+              >
+                {children}
+              </Container>
+              <Footer />
+            </Box>
+          </AuthProvider>
         </ThemeRegistry>
       </body>
     </html>

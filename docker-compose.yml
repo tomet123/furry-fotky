@@ -18,23 +18,6 @@ services:
       interval: 5s
       timeout: 5s
       retries: 5
-      
-
-  postgrest:
-    image: postgrest/postgrest
-    restart: always
-    ports:
-      - "3001:3000"
-    environment:
-      PGRST_DB_URI: postgres://app_user:app_password@db:5432/furry_fotky
-      PGRST_DB_SCHEMA: public,storage
-      PGRST_DB_ANON_ROLE: anon
-      PGRST_JWT_SECRET: "tajny_klic_pro_jwt"
-      PGRST_OPENAPI_SERVER_PROXY_URI: http://localhost:3001
-      PGRST_RAW_MEDIA_TYPES: "*/*"
-    depends_on:
-      db:
-        condition: service_healthy
 
   pgadmin:
     image: dpage/pgadmin4

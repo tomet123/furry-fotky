@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useCallback, useTransition } from 'react';
+import React, { useState, useEffect, useTransition, memo } from 'react';
 import { 
   Dialog, 
   Box, 
@@ -18,6 +18,115 @@ import FavoriteIcon from '@mui/icons-material/Favorite';
 import FavoriteBorderIcon from '@mui/icons-material/FavoriteBorder';
 import { Photo } from '@/hooks/usePhotoItems';
 import Link from 'next/link';
+import { SMALL_AVATAR_SIZE } from '@/lib/constants';
+
+// Stylové konstanty
+const MAX_WIDTH_PERCENTAGE = 0.75; // Maximální šířka jako procento viewportu
+const MAX_HEIGHT_PERCENTAGE = 0.75; // Maximální výška jako procento viewportu
+
+const darkOverlayStyle = {
+  bgcolor: 'rgba(0, 0, 0, 0.3)',
+};
+
+const darkOverlayHoverStyle = {
+  '&:hover': { 
+    bgcolor: 'rgba(0, 0, 0, 0.5)' 
+  }
+};
+
+const navButtonStyle = {
+  color: 'white',
+  ...darkOverlayStyle,
+  opacity: 0.7,
+  borderRadius: 30, // Oválný tvar místo hranatého
+  width: 48,
+  height: 48,
+  '&:hover': { 
+    opacity: 1, 
+    bgcolor: 'rgba(0, 0, 0, 0.5)' 
+  }
+};
+
+const actionButtonStyle = {
+  color: 'white',
+  ...darkOverlayStyle,
+  ...darkOverlayHoverStyle,
+  p: 1,
+  height: 32,
+  width: 32
+};
+
+const controlBoxStyle = { 
+  display: 'flex',
+  alignItems: 'center',
+  gap: 0.5,
+  px: 1.5,
+  py: 0.5,
+  borderRadius: 2,
+  ...darkOverlayStyle
+};
+
+const photoContainerStyle = { 
+  position: 'relative',
+  width: '100%',
+  height: '100%',
+  display: 'flex',
+  alignItems: 'center',
+  justifyContent: 'center',
+  p: 0,
+  m: 0,
+  bgcolor: 'black',
+  overflow: 'hidden'
+};
+
+const headerStyle = {
+  position: 'absolute',
+  top: 0,
+  left: 0,
+  right: 0,
+  display: 'flex',
+  justifyContent: 'space-between',
+  alignItems: 'center',
+  background: 'linear-gradient(to bottom, rgba(0,0,0,0.5) 0%, rgba(0,0,0,0) 100%)',
+  zIndex: 10
+};
+
+const footerStyle = {
+  position: 'absolute',
+  left: 0,
+  right: 0,
+  bottom: 0,
+  p: 2,
+  bgcolor: 'rgba(0, 0, 0, 0.5)',
+  backdropFilter: 'blur(8px)',
+  color: 'white',
+  zIndex: 10
+};
+
+const navContainerStyle = { 
+  position: 'absolute',
+  top: 0,
+  height: '100%',
+  width: '50%',
+  display: 'flex',
+  alignItems: 'center',
+  px: 2,
+  zIndex: 9
+};
+
+const tagChipStyle = {
+  height: 24,
+  fontSize: '0.7rem',
+  bgcolor: 'rgba(255, 255, 255, 0.15)',
+  color: 'white'
+};
+
+const dotSeparatorStyle = { 
+  width: 4, 
+  height: 4, 
+  borderRadius: '50%', 
+  bgcolor: 'rgba(255, 255, 255, 0.5)'
+};
 
 // Hook pro sledování velikosti okna
 function useWindowSize() {
@@ -72,7 +181,7 @@ interface PhotoDetailProps {
 /**
  * Komponenta pro zobrazení detailu fotografie v modálním okně nebo inline
  */
-export const PhotoDetail: React.FC<PhotoDetailProps> = ({ 
+const PhotoDetail: React.FC<PhotoDetailProps> = ({ 
   photo, 
   open = true, 
   onClose = () => {},
@@ -98,18 +207,16 @@ export const PhotoDetail: React.FC<PhotoDetailProps> = ({
   const [likeCount, setLikeCount] = useState(photo?.likes || 0);
   const [likeInProgress, setLikeInProgress] = useState(false);
   const windowSize = useWindowSize();
-  const [isPending, startTransition] = useTransition();
+  const [, startTransition] = useTransition();
 
-  // Přidáváme další useEffect, který byl detekován jako chybějící v některých případech
-  // Je třeba zajistit, že tento useEffect se volá při každém renderování
+  // Reset načítání při změně fotky
   useEffect(() => {
-    // Reset načítání při změně fotky
     if (photo) {
       setLoading(true);
     }
-  }, [photo?.id]);
+  }, [photo, photo?.id]);
 
-  // Aktualizujeme počet lajků při změně fotografie - přesunuto před podmíněný návrat
+  // Aktualizujeme počet lajků při změně fotografie
   useEffect(() => {
     if (photo) {
       setLikeCount(photo.likes);
@@ -135,7 +242,6 @@ export const PhotoDetail: React.FC<PhotoDetailProps> = ({
     setLoading(false);
     
     // Nastavíme znovu velikost modálního okna po načtení obrázku
-    // Toto je potřeba pro správné vykreslení bez okrajů
     if (mode === "dialog") {
       setTimeout(() => {
         window.dispatchEvent(new Event('resize'));
@@ -181,25 +287,22 @@ export const PhotoDetail: React.FC<PhotoDetailProps> = ({
           });
         }
       }
-    } catch (error) {
-      console.error('Chyba při lajkování:', error);
+    } catch {
+      // Chyba při lajkování - tichá
     } finally {
       setLikeInProgress(false);
     }
   };
 
-  const MAX_WIDTH_PERCENTAGE = 0.75; // Maximální šířka jako procento viewportu
-  const MAX_HEIGHT_PERCENTAGE = 0.75; // Maximální výška jako procento viewportu
-
   // Výpočet rozměrů modálního okna
-  let modalWidth = fullScreen ? '100%' : 
+  const modalWidth = fullScreen ? '100%' : 
     isSmall ? '95vw' : 
     imgDimensions.width > 0 ? 
       // Přesná šířka fotografie bez paddingu, omezená maximální šířkou viewportu
       Math.min(imgDimensions.width, windowSize.width * MAX_WIDTH_PERCENTAGE) + 'px' : 
       '95vw';
 
-  let modalHeight = fullScreen ? '100%' : 
+  const modalHeight = fullScreen ? '100%' : 
     isSmall ? '95vh' : 
     imgDimensions.height > 0 ? 
       // Přesná výška fotografie bez paddingu, omezená maximální výškou viewportu
@@ -215,18 +318,7 @@ export const PhotoDetail: React.FC<PhotoDetailProps> = ({
       bgcolor: 'black'
     }}>
       {/* Fotografie */}
-      <Box sx={{ 
-        position: 'relative',
-        width: '100%',
-        height: '100%',
-        display: 'flex',
-        alignItems: 'center',
-        justifyContent: 'center',
-        p: 0,
-        m: 0,
-        bgcolor: 'black',
-        overflow: 'hidden'
-      }}>
+      <Box sx={photoContainerStyle}>
         {/* Loading spinner */}
         {loading && (
           <Box sx={{ 
@@ -260,7 +352,7 @@ export const PhotoDetail: React.FC<PhotoDetailProps> = ({
         {/* Samotná fotografie */}
         <Box
           component="img"
-          src={'/api' + photo.imageUrl}
+          src={photo.imageUrl || undefined}
           loading={mode === "dialog" ? "eager" : "lazy"}
           onLoad={handleImageLoad}
           onError={handleImageError}
@@ -282,17 +374,9 @@ export const PhotoDetail: React.FC<PhotoDetailProps> = ({
         {/* Horní panel s ovládacími prvky */}
         {showHeader && (
           <Box sx={{
-            position: 'absolute',
-            top: 0,
-            left: 0,
-            right: 0,
+            ...headerStyle,
             py: mode === "inline" ? 2 : 1,
             px: mode === "inline" ? 3 : 2,
-            display: 'flex',
-            justifyContent: 'space-between',
-            alignItems: 'center',
-            background: 'linear-gradient(to bottom, rgba(0,0,0,0.5) 0%, rgba(0,0,0,0) 100%)',
-            zIndex: 10
           }}>
             {/* Levá strana */}
             {mode === "inline" ? (
@@ -302,15 +386,7 @@ export const PhotoDetail: React.FC<PhotoDetailProps> = ({
             ) : (
               <Box sx={{ display: 'flex', gap: 1 }}>
                 {/* Box pro obě tlačítka společně */}
-                <Box sx={{ 
-                  display: 'flex',
-                  alignItems: 'center',
-                  gap: 0.5,
-                  px: 1.5,
-                  py: 0.5,
-                  borderRadius: 2,
-                  bgcolor: 'rgba(0, 0, 0, 0.3)'
-                }}>
+                <Box sx={controlBoxStyle}>
                   {showLikes && (
                     <>
                       <Tooltip title={liked ? 'Odebrat lajku' : 'Přidat lajku'}>
@@ -318,14 +394,7 @@ export const PhotoDetail: React.FC<PhotoDetailProps> = ({
                           onClick={handleLikeClick}
                           disabled={true}
                           aria-label={liked ? 'Odebrat lajku' : 'Přidat lajku'}
-                          sx={{
-                            color: 'white',
-                            bgcolor: 'rgba(0, 0, 0, 0.3)',
-                            '&:hover': { bgcolor: 'rgba(0, 0, 0, 0.5)' },
-                            p: 1,
-                            height: 32,
-                            width: 32
-                          }}
+                          sx={actionButtonStyle}
                           size="small"
                         >
                           <Box component="span" sx={{ fontSize: '1.2rem' }}>
@@ -344,14 +413,7 @@ export const PhotoDetail: React.FC<PhotoDetailProps> = ({
                     <IconButton
                       onClick={toggleFitMode}
                       aria-label={fitMode === 'contain' ? 'zvětšit na celou plochu' : 'zobrazit celou fotku'}
-                      sx={{
-                        color: 'white',
-                        bgcolor: 'rgba(0, 0, 0, 0.3)',
-                        '&:hover': { bgcolor: 'rgba(0, 0, 0, 0.5)' },
-                        p: 1,
-                        height: 32,
-                        width: 32
-                      }}
+                      sx={actionButtonStyle}
                       size="small"
                     >
                       <Box component="span" sx={{ fontSize: '1.2rem' }}>
@@ -365,27 +427,12 @@ export const PhotoDetail: React.FC<PhotoDetailProps> = ({
 
             {/* Pravá strana */}
             {mode === "inline" && showLikes && (
-              <Box sx={{ 
-                display: 'flex',
-                alignItems: 'center',
-                gap: 0.5,
-                px: 1.5,
-                py: 0.7,
-                borderRadius: 2,
-                bgcolor: 'rgba(0, 0, 0, 0.3)'
-              }}>
+              <Box sx={controlBoxStyle}>
                 <Tooltip title={liked ? 'Odebrat lajku' : 'Přidat lajku'}>
                   <IconButton
                     onClick={handleLikeClick}
                     aria-label={liked ? 'Odebrat lajku' : 'Přidat lajku'}
-                    sx={{
-                      color: 'white',
-                      bgcolor: 'rgba(0, 0, 0, 0.3)',
-                      '&:hover': { bgcolor: 'rgba(0, 0, 0, 0.5)' },
-                      p: 1,
-                      height: 32,
-                      width: 32
-                    }}
+                    sx={actionButtonStyle}
                     size="small"
                   >
                     <Box component="span" sx={{ fontSize: '1.2rem' }}>
@@ -405,8 +452,8 @@ export const PhotoDetail: React.FC<PhotoDetailProps> = ({
                 aria-label="zavřít"
                 sx={{
                   color: 'white',
-                  bgcolor: 'rgba(0, 0, 0, 0.3)',
-                  '&:hover': { bgcolor: 'rgba(0, 0, 0, 0.5)' }
+                  ...darkOverlayStyle,
+                  ...darkOverlayHoverStyle
                 }}
                 size="small"
               >
@@ -418,32 +465,14 @@ export const PhotoDetail: React.FC<PhotoDetailProps> = ({
         
         {/* Navigační tlačítka na bocích */}
         <Box sx={{ 
-          position: 'absolute',
-          top: 0,
+          ...navContainerStyle,
           left: 0,
-          height: '100%',
-          width: '50%',
-          display: 'flex',
-          alignItems: 'center',
-          px: 2,
-          zIndex: 9
         }}>
           {onPrevious && (
             <IconButton
               onClick={onPrevious}
               aria-label="předchozí fotografie"
-              sx={{
-                color: 'white',
-                bgcolor: 'rgba(0, 0, 0, 0.3)',
-                opacity: 0.7,
-                borderRadius: 30, // Oválný tvar místo hranatého
-                width: 48,
-                height: 48,
-                '&:hover': { 
-                  opacity: 1, 
-                  bgcolor: 'rgba(0, 0, 0, 0.5)' 
-                }
-              }}
+              sx={navButtonStyle}
             >
               <Box component="span" sx={{ fontSize: '2rem' }}>
                 ‹
@@ -453,33 +482,15 @@ export const PhotoDetail: React.FC<PhotoDetailProps> = ({
         </Box>
         
         <Box sx={{ 
-          position: 'absolute',
-          top: 0,
+          ...navContainerStyle,
           right: 0,
-          height: '100%',
-          width: '50%',
-          display: 'flex',
-          alignItems: 'center',
           justifyContent: 'flex-end',
-          px: 2,
-          zIndex: 9
         }}>
           {onNext && (
             <IconButton
               onClick={onNext}
               aria-label="další fotografie"
-              sx={{
-                color: 'white',
-                bgcolor: 'rgba(0, 0, 0, 0.3)',
-                opacity: 0.7,
-                borderRadius: 30, // Oválný tvar místo hranatého
-                width: 48,
-                height: 48,
-                '&:hover': { 
-                  opacity: 1, 
-                  bgcolor: 'rgba(0, 0, 0, 0.5)' 
-                }
-              }}
+              sx={navButtonStyle}
             >
               <Box component="span" sx={{ fontSize: '2rem' }}>
                 ›
@@ -490,19 +501,7 @@ export const PhotoDetail: React.FC<PhotoDetailProps> = ({
 
         {/* Info panel překrývající spodní část fotografie */}
         {showFooter && (
-          <Box
-            sx={{
-              position: 'absolute',
-              left: 0,
-              right: 0,
-              bottom: 0,
-              p: 2,
-              bgcolor: 'rgba(0, 0, 0, 0.5)',
-              backdropFilter: 'blur(8px)',
-              color: 'white',
-              zIndex: 10
-            }}
-          >
+          <Box sx={footerStyle}>
             <Box sx={{ 
               display: 'flex', 
               alignItems: 'center', 
@@ -517,8 +516,8 @@ export const PhotoDetail: React.FC<PhotoDetailProps> = ({
               }}>
                 <Avatar 
                   sx={{ 
-                    width: 28, 
-                    height: 28,
+                    width: SMALL_AVATAR_SIZE, 
+                    height: SMALL_AVATAR_SIZE,
                     bgcolor: 'primary.main'
                   }}
                 >
@@ -529,12 +528,7 @@ export const PhotoDetail: React.FC<PhotoDetailProps> = ({
                 </Typography>
               </Box>
               
-              <Box sx={{ 
-                width: 4, 
-                height: 4, 
-                borderRadius: '50%', 
-                bgcolor: 'rgba(255, 255, 255, 0.5)'
-              }} />
+              <Box sx={dotSeparatorStyle} />
               
               {/* Akce */}
               <Typography variant="body2" sx={{ color: 'white' }}>
@@ -544,10 +538,7 @@ export const PhotoDetail: React.FC<PhotoDetailProps> = ({
               {/* Oddělovač před tagy pro větší obrazovky */}
               <Box 
                 sx={{ 
-                  width: 4, 
-                  height: 4, 
-                  borderRadius: '50%', 
-                  bgcolor: 'rgba(255, 255, 255, 0.5)',
+                  ...dotSeparatorStyle,
                   display: { xs: 'none', sm: 'block' }
                 }} 
               />
@@ -567,12 +558,7 @@ export const PhotoDetail: React.FC<PhotoDetailProps> = ({
                     key={tag}
                     label={tag}
                     size="small"
-                    sx={{
-                      height: 24,
-                      fontSize: '0.7rem',
-                      bgcolor: 'rgba(255, 255, 255, 0.15)',
-                      color: 'white'
-                    }}
+                    sx={tagChipStyle}
                   />
                 ))}
               </Stack>
@@ -648,4 +634,8 @@ export const PhotoDetail: React.FC<PhotoDetailProps> = ({
       </Paper>
     );
   }
-}; 
+};
+
+// Export jako memo komponentu pro optimalizaci
+export const MemoizedPhotoDetail = memo(PhotoDetail);
+export { PhotoDetail }; 

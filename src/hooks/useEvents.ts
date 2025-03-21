@@ -1,19 +1,13 @@
-import { useState, useEffect, useCallback } from 'react';
-import { endpoints, preparePostgRESTUrl, getTotalCount } from '@/lib/postgrest';
+import { useCallback, useEffect, useState } from 'react';
+import { prepareApiUrl, endpoints } from '@/lib/api';
 import { Photo } from './usePhotoItems';
-
-export interface Event {
-  id: number;
-  name: string;
-  description?: string;
-  location?: string;
-  date: string;
-  photos_count?: number;
-}
+import { Event, PhotoDetail } from '@/lib/api-helpers';
 
 interface UseEventsParams {
   query?: string;
   type?: 'all' | 'upcoming' | 'past';
+  limit?: number;
+  page?: number;
 }
 
 interface UseEventDetailParams {
@@ -27,7 +21,9 @@ interface UseEventDetailParams {
  */
 export function useEvents({
   query,
-  type = 'all'
+  type = 'all',
+  limit = 10,
+  page = 1
 }: UseEventsParams = {}) {
   const [events, setEvents] = useState<Event[]>([]);
   const [loading, setLoading] = useState<boolean>(true);
@@ -38,29 +34,35 @@ export function useEvents({
   const fetchEvents = useCallback(async () => {
     setLoading(true);
     try {
-      // Vytvoření parametrů pro PostgREST
-      const params = new URLSearchParams();
+      // Vytvoření filtrů
+      const filters: Record<string, string> = {};
       
-      // Filtrování dle query
+      // Filtrování dle query - mapujeme na name parametr pro vyhledávání
       if (query) {
-        params.append('name', `ilike.%${query}%`);
+        filters.name = query;
       }
       
       // Filtrování dle typu (nadcházející/minulé)
       const currentDate = new Date().toISOString().split('T')[0]; // YYYY-MM-DD
+      const sortBy = 'date';
+      let sortOrder: 'asc' | 'desc' = 'desc';
       
       if (type === 'upcoming') {
-        params.append('date', `gte.${currentDate}`);
-        params.append('order', 'date.asc');
+        filters.date_after = currentDate;
+        sortOrder = 'asc';
       } else if (type === 'past') {
-        params.append('date', `lt.${currentDate}`);
-        params.append('order', 'date.desc');
-      } else {
-        params.append('order', 'date.desc');
+        filters.date_before = currentDate;
+        sortOrder = 'desc';
       }
       
-      // Získání celkového počtu záznamů
-      const total = await getTotalCount(endpoints.events, params);
+      // Připravíme parametry včetně stránkování
+      const params = prepareApiUrl(endpoints.events, {
+        page,
+        limit,
+        sortBy,
+        sortOrder,
+        filters
+      });
       
       // Načtení dat
       const url = `${endpoints.events}?${params.toString()}`;
@@ -70,17 +72,21 @@ export function useEvents({
         throw new Error(`Chyba při načítání akcí: ${response.statusText}`);
       }
       
-      const data = await response.json();
+      const result = await response.json();
       
-      setEvents(data);
-      setTotalItems(total);
-    } catch (err) {
+      if (!result.success) {
+        throw new Error(result.message || 'Chyba při načítání akcí');
+      }
+      
+      setEvents(result.data || []);
+      setTotalItems(result.pagination?.totalItems || 0);
+    } catch {
       console.error('Chyba při načítání akcí:', err);
       setError((err as Error).message);
     } finally {
       setLoading(false);
     }
-  }, [query, type]);
+  }, [query, type, page, limit]);
   
   // Načtení akcí při změně parametrů
   useEffect(() => {
@@ -134,32 +140,29 @@ export function useEventDetail({
     setLoading(true);
     try {
       // Nejprve získáme akci
-      const eventUrl = `${endpoints.events}?id=eq.${id}`;
+      const eventUrl = `${endpoints.events}?id=${id}`;
       const eventResponse = await fetch(eventUrl);
       
       if (!eventResponse.ok) {
         throw new Error(`Chyba při načítání akce: ${eventResponse.statusText}`);
       }
       
-      const events = await eventResponse.json();
+      const eventResult = await eventResponse.json();
       
-      if (events.length === 0) {
+      if (!eventResult.success || !eventResult.data || eventResult.data.length === 0) {
         throw new Error('Akce nebyla nalezena');
       }
       
-      setEvent(events[0]);
+      setEvent(eventResult.data[0]);
       
       // Potom získáme fotografie z této akce
-      const params = preparePostgRESTUrl(endpoints.photoDetails, {
+      const params = prepareApiUrl(endpoints.photoDetails, {
         page,
         limit,
         filters: {
-          event: events[0].name
+          event_id: id
         }
       });
-      
-      // Získání celkového počtu fotografií
-      const total = await getTotalCount(endpoints.photoDetails, params);
       
       // Načtení fotografií
       const photosUrl = `${endpoints.photoDetails}?${params.toString()}`;
@@ -169,12 +172,26 @@ export function useEventDetail({
         throw new Error(`Chyba při načítání fotografií: ${photosResponse.statusText}`);
       }
       
-      const photosData = await photosResponse.json();
+      const photosResult = await photosResponse.json();
       
-      setPhotos(photosData);
-      setTotalPhotos(total);
-      setTotalPages(Math.ceil(total / limit));
-    } catch (err) {
+      if (!photosResult.success) {
+        throw new Error(photosResult.message || 'Chyba při načítání fotografií');
+      }
+      
+      const photosData = photosResult.data || [];
+      const pagination = photosResult.pagination || {};
+      
+      // Transformace dat
+      const transformedPhotos = photosData.map((item: PhotoDetail) => ({
+        ...item,
+        imageUrl: item.photo_id ? `/api/photos/files/${item.photo_id}` : undefined,
+        thumbnailUrl: item.thumbnail_id ? `/api/photos/thumbnails/${item.thumbnail_id}` : undefined
+      }));
+      
+      setPhotos(transformedPhotos);
+      setTotalPhotos(pagination.totalItems || 0);
+      setTotalPages(pagination.totalPages || 0);
+    } catch {
       console.error('Chyba při načítání detailu akce:', err);
       setError((err as Error).message);
     } finally {

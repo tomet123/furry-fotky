@@ -1,28 +1,46 @@
-// URL pro PostgREST API přes Next.js proxy
-export const POSTGREST_URL = '/api';
+// URL pro Next.js API
+export const API_URL = '/api';
 
-// Endpointy pro PostgREST API
+// Endpointy pro API
 export const endpoints = {
   // Základní endpointy pro entity
-  photos: `${POSTGREST_URL}/photos`,
-  photoDetails: `${POSTGREST_URL}/photo_details`,
-  photographers: `${POSTGREST_URL}/photographers`,
-  events: `${POSTGREST_URL}/events`,
-  tags: `${POSTGREST_URL}/tags`,
-  photoTags: `${POSTGREST_URL}/photo_tags`,
+  photos: `${API_URL}/photos`,
+  photoDetails: `${API_URL}/photos/details`,
+  photographers: `${API_URL}/photographers`,
+  events: `${API_URL}/events`,
+  tags: `${API_URL}/tags`,
+  photoTags: `${API_URL}/photo-tags`,
   
-  // Endpointy pro soubory ve storage schématu
-  photoFiles: `${POSTGREST_URL}/storage/photo_files`,
-  photoThumbnails: `${POSTGREST_URL}/storage/photo_thumbnails`,
+  // Endpointy pro fotografie
+  photoFiles: `${API_URL}/photos/files`,
+  photoThumbnails: `${API_URL}/photos/thumbnails`,
 
-
+  // Autentizační endpointy
+  register: `${API_URL}/auth/register`,
+  login: `${API_URL}/auth/login`,
+  currentUser: `${API_URL}/auth/me`,
+  users: `${API_URL}/users`,
 };
 
+// Klíč pro uložení JWT tokenu v localStorage
+export const JWT_STORAGE_KEY = 'furry_fotky_auth_token';
 
 /**
- * Pomocná funkce pro přípravu PostgREST URL s filtry
+ * Pomocná funkce pro přidání autorizačního tokenu do hlavičky
  */
-export function preparePostgRESTUrl(
+export function getAuthorizationHeader(): HeadersInit | undefined {
+  if (typeof window === 'undefined') {
+    return undefined;
+  }
+
+  const token = localStorage.getItem(JWT_STORAGE_KEY);
+  return token ? { 'Authorization': `Bearer ${token}` } : undefined;
+}
+
+/**
+ * Pomocná funkce pro přípravu URL s filtry
+ */
+export function prepareApiUrl(
   baseUrl: string,
   options: {
     page?: number;
@@ -31,41 +49,41 @@ export function preparePostgRESTUrl(
     sortOrder?: 'asc' | 'desc';
     filters?: Record<string, string | string[]>;
   } = {}
-): URLSearchParams {
+): string {
   // Vytvoříme URLSearchParams pro práci s parametry
   const params = new URLSearchParams();
   
   // Stránkování
-  if (options.page && options.limit) {
-    const offset = (options.page - 1) * options.limit;
-    params.append('limit', options.limit.toString());
-    params.append('offset', offset.toString());
-  } else if (options.limit) {
+  if (options.page) {
+    params.append('page', options.page.toString());
+  }
+  
+  if (options.limit) {
     params.append('limit', options.limit.toString());
   }
   
   // Řazení
   if (options.sortBy) {
-    const order = options.sortOrder || 'asc';
-    params.append('order', `${options.sortBy}.${order}`);
+    params.append('sortBy', options.sortBy);
+    params.append('sortOrder', options.sortOrder || 'asc');
   }
   
   // Filtry
   if (options.filters) {
     Object.entries(options.filters).forEach(([key, value]) => {
       if (Array.isArray(value)) {
-        // PostgREST používá operátor in pro pole hodnot
-        // ?column=in.(val1,val2,val3)
-        params.append(key, `in.(${value.join(',')})`);
+        // Pro pole hodnot použijeme více parametrů se stejným názvem
+        value.forEach(v => {
+          if (v) params.append(key, v);
+        });
       } else if (value) {
-        // Základní filtrování podle rovnosti
-        // ?column=eq.value
-        params.append(key, `eq.${value}`);
+        params.append(key, value);
       }
     });
   }
   
-  return params;
+  const queryString = params.toString();
+  return queryString ? `${baseUrl}?${queryString}` : baseUrl;
 }
 
 /**

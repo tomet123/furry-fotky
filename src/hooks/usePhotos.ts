@@ -1,6 +1,6 @@
 import { useState, useEffect, useCallback } from 'react';
 import { Photo } from './usePhotoItems';
-import { endpoints, preparePostgRESTUrl, getTotalCount } from '@/lib/postgrest';
+import { endpoints, prepareApiUrl } from '@/lib/api';
 
 interface UsePhotosParams {
   page?: number;
@@ -24,7 +24,7 @@ interface UsePhotosResult {
 }
 
 /**
- * Hook pro práci s fotografiemi přímo přes PostgREST API
+ * Hook pro práci s fotografiemi přímo přes Next.js API
  */
 export function usePhotos({
   page = 1,
@@ -45,7 +45,7 @@ export function usePhotos({
   const fetchPhotos = useCallback(async () => {
     setLoading(true);
     try {
-      // Vytvoření filtrů pro PostgREST
+      // Vytvoření filtrů pro API
       const filters: Record<string, string | string[]> = {};
       
       if (event) {
@@ -58,6 +58,10 @@ export function usePhotos({
       
       if (tags && tags.length > 0) {
         filters.tags = tags;
+      }
+      
+      if (query) {
+        filters.query = query;
       }
       
       // Mapování sortBy hodnot na názvy sloupců v databázi
@@ -75,22 +79,14 @@ export function usePhotos({
         sortOrder = 'desc';
       }
       
-      // Vytvoření parametrů pro PostgREST
-      const params = preparePostgRESTUrl(endpoints.photoDetails, {
+      // Vytvoření parametrů pro API
+      const params = prepareApiUrl(endpoints.photoDetails, {
         page,
         limit,
         sortBy: dbSortBy,
         sortOrder,
         filters
       });
-      
-      // Text search filtr (query)
-      if (query) {
-        params.append('or', `(event.ilike.%${query}%,photographer.ilike.%${query}%)`);
-      }
-      
-      // Získání celkového počtu záznamů
-      const total = await getTotalCount(endpoints.photoDetails, params);
       
       // Sestavení URL s parametry
       const url = `${endpoints.photoDetails}?${params.toString()}`;
@@ -102,21 +98,33 @@ export function usePhotos({
         throw new Error(`Chyba při načítání fotografií: ${response.statusText}`);
       }
       
-      const data = await response.json();
+      const result = await response.json();
+      
+      if (!result.success) {
+        throw new Error(result.message || 'Chyba při načítání fotografií');
+      }
+      
+      const data = result.data || [];
+      const pagination = result.pagination || {};
       
       // Transformace dat z API
-      const transformedData = data.map((item: any) => ({
+      interface PhotoItem {
+        photo_id?: number;
+        thumbnail_id?: number;
+        [key: string]: any;
+      }
+
+      const transformedData = data.map((item: PhotoItem) => ({
         ...item,
-        imageUrl: item.image_url,
-        thumbnailUrl: item.thumbnail_url
+        imageUrl: item.photo_id ? `/api/photos/files/${item.photo_id}` : undefined,
+        thumbnailUrl: item.thumbnail_id ? `/api/photos/thumbnails/${item.thumbnail_id}` : undefined
       }));
       
       setPhotos(transformedData);
-      setTotalItems(total);
-      setTotalPages(Math.ceil(total / limit));
-    } catch (err) {
-      console.error('Chyba při načítání fotografií:', err);
-      setError((err as Error).message);
+      setTotalItems(pagination.totalItems || 0);
+      setTotalPages(pagination.totalPages || 0);
+    } catch {
+      setError('Chyba při načítání fotografií');
     } finally {
       setLoading(false);
     }
@@ -131,38 +139,21 @@ export function usePhotos({
   const likePhoto = useCallback(async (photoId: number): Promise<Photo | null> => {
     try {
       // Nejprve získáme aktuální počet lajků
-      const getResponse = await fetch(`${endpoints.photos}?id=eq.${photoId}&select=likes`);
-      
-      if (!getResponse.ok) {
-        throw new Error(`Chyba při načítání dat fotografie: ${getResponse.statusText}`);
-      }
-      
-      const photos = await getResponse.json();
-      
-      if (photos.length === 0) {
-        throw new Error('Fotografie nebyla nalezena');
-      }
-      
-      const currentLikes = photos[0].likes || 0;
-      
-      // Aktualizace počtu lajků
-      const updateResponse = await fetch(`${endpoints.photos}?id=eq.${photoId}`, {
-        method: 'PATCH',
-        headers: {
-          'Content-Type': 'application/json',
-          'Prefer': 'return=representation'
-        },
-        body: JSON.stringify({
-          likes: currentLikes + 1
-        })
+      const response = await fetch(`${endpoints.photos}/${photoId}/like`, {
+        method: 'POST'
       });
       
-      if (!updateResponse.ok) {
-        throw new Error(`Chyba při aktualizaci počtu lajků: ${updateResponse.statusText}`);
+      if (!response.ok) {
+        throw new Error(`Chyba při lajkování fotografie: ${response.statusText}`);
       }
       
-      const updatedPhotos = await updateResponse.json();
-      const updatedPhoto = updatedPhotos[0];
+      const result = await response.json();
+      
+      if (!result.success) {
+        throw new Error(result.message || 'Chyba při lajkování fotografie');
+      }
+      
+      const updatedPhoto = result.data;
       
       // Aktualizace stavu fotografií
       setPhotos(prevPhotos => 
@@ -174,9 +165,9 @@ export function usePhotos({
       );
       
       return updatedPhoto;
-    } catch (err) {
-      console.error('Chyba při lajkování fotografie:', err);
-      setError((err as Error).message);
+    } catch (error: any) {
+      console.error('Chyba při lajkování fotky:', error.message);
+      setError((error as Error).message);
       return null;
     }
   }, []);
@@ -184,40 +175,22 @@ export function usePhotos({
   // Funkce pro odebrání lajku z fotografie
   const unlikePhoto = useCallback(async (photoId: number): Promise<Photo | null> => {
     try {
-      // Obdobný postup jako u likePhoto, ale odečítáme lajk
-      const getResponse = await fetch(`${endpoints.photos}?id=eq.${photoId}&select=likes`);
-      
-      if (!getResponse.ok) {
-        throw new Error(`Chyba při načítání dat fotografie: ${getResponse.statusText}`);
-      }
-      
-      const photos = await getResponse.json();
-      
-      if (photos.length === 0) {
-        throw new Error('Fotografie nebyla nalezena');
-      }
-      
-      const currentLikes = photos[0].likes || 0;
-      const newLikes = Math.max(0, currentLikes - 1); // Zajistíme, že počet lajků neklesne pod 0
-      
-      // Aktualizace počtu lajků
-      const updateResponse = await fetch(`${endpoints.photos}?id=eq.${photoId}`, {
-        method: 'PATCH',
-        headers: {
-          'Content-Type': 'application/json',
-          'Prefer': 'return=representation'
-        },
-        body: JSON.stringify({
-          likes: newLikes
-        })
+      // Obdobný postup jako u likePhoto, ale použijeme unlike endpoint
+      const response = await fetch(`${endpoints.photos}/${photoId}/unlike`, {
+        method: 'POST'
       });
       
-      if (!updateResponse.ok) {
-        throw new Error(`Chyba při aktualizaci počtu lajků: ${updateResponse.statusText}`);
+      if (!response.ok) {
+        throw new Error(`Chyba při odebírání lajku z fotografie: ${response.statusText}`);
       }
       
-      const updatedPhotos = await updateResponse.json();
-      const updatedPhoto = updatedPhotos[0];
+      const result = await response.json();
+      
+      if (!result.success) {
+        throw new Error(result.message || 'Chyba při odebírání lajku z fotografie');
+      }
+      
+      const updatedPhoto = result.data;
       
       // Aktualizace stavu fotografií
       setPhotos(prevPhotos => 
@@ -229,9 +202,9 @@ export function usePhotos({
       );
       
       return updatedPhoto;
-    } catch (err) {
-      console.error('Chyba při odebírání lajku z fotografie:', err);
-      setError((err as Error).message);
+    } catch (error: unknown) {
+      console.error('Chyba při lajkování fotky:', error instanceof Error ? error.message : 'Neznámá chyba');
+      setError(error instanceof Error ? error.message : 'Neznámá chyba');
       return null;
     }
   }, []);

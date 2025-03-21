@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react';
-import { endpoints, preparePostgRESTUrl } from '@/lib/postgrest';
+import { endpoints, prepareApiUrl } from '@/lib/api';
 
 export interface Photo {
   id: number;
@@ -22,12 +22,12 @@ export const usePhotoItems = () => {
   useEffect(() => {
     const fetchPhotos = async () => {
       try {
-        // Vytvoříme parametry pro získání foto detailů z PostgREST
-        const params = preparePostgRESTUrl(endpoints.photoDetails);
-        
-        // Nastavíme limity a řazení
-        params.append('limit', '20');
-        params.append('order', 'date.desc');
+        // Vytvoříme parametry pro získání foto detailů
+        const params = prepareApiUrl(endpoints.photoDetails, {
+          limit: 20,
+          sortBy: 'date',
+          sortOrder: 'desc'
+        });
         
         // Sestavení URL s parametry
         const url = `${endpoints.photoDetails}?${params.toString()}`;
@@ -38,18 +38,43 @@ export const usePhotoItems = () => {
           throw new Error(`Chyba při načítání fotografií: ${response.statusText}`);
         }
         
-        const data = await response.json();
+        const result = await response.json();
+        const data = result.data || [];
         
-        // Transformace dat z API
-        const transformedData = data.map((item: any) => ({
-          ...item,
-          imageUrl: item.image_url,
-          thumbnailUrl: item.thumbnail_url
-        }));
+        // Mapování API dat na PhotoItem
+        interface PhotoDetailExtended {
+          id: number;
+          date: string;
+          likes: number;
+          event_id?: number | null;
+          photographer_id?: number | null;
+          event: string | null;
+          photographer: string | null;
+          photo_id: number;
+          thumbnail_id: number;
+          tags: string[];
+        }
         
-        setPhotos(transformedData);
+        const photoItems: Photo[] = data.map((photoData: PhotoDetailExtended) => {
+          return {
+            id: photoData.id,
+            date: photoData.date,
+            eventId: photoData.event_id || null,
+            photographerId: photoData.photographer_id || null,
+            event: photoData.event || null,
+            photographer: photoData.photographer || null,
+            tags: photoData.tags || [],
+            likes: photoData.likes || 0,
+            photoId: photoData.photo_id || null,
+            thumbnailId: photoData.thumbnail_id || null,
+            imageUrl: photoData.photo_id ? `/api/photos/files/${photoData.photo_id}` : undefined,
+            thumbnailUrl: photoData.thumbnail_id ? `/api/photos/thumbnails/${photoData.thumbnail_id}` : undefined
+          };
+        });
+        
+        setPhotos(photoItems);
       } catch (error) {
-        console.error('Chyba při načítání fotografií:', error);
+        // console.error('Chyba při načítání fotografií:', error);
         setError((error as Error).message);
       } finally {
         setLoading(false);
@@ -60,34 +85,4 @@ export const usePhotoItems = () => {
   }, []);
 
   return { photos, loading, error };
-};
-
-// Export statických dat, která budeme používat v ukázkách
-export const EVENTS = [
-  "Mikulášská besídka 2022",
-  "FurryFest 2022",
-  "Pawladin 2023",
-  "Furšíkův výlet 2023",
-  "JarniSraz 2023"
-];
-
-export const PHOTOGRAPHERS = [
-  "Michal Novák",
-  "Jana Svobodová",
-  "Petr Černý",
-  "Eva Procházková",
-  "Tomáš Králík"
-];
-
-export const TAGS = [
-  "venku",
-  "uvnitř",
-  "skupinové",
-  "portrét",
-  "akce",
-  "kostým",
-  "fursuit",
-  "večer",
-  "zábava",
-  "jídlo"
-]; 
+}; 

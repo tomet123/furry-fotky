@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { useState } from 'react';
 import { 
   Paper, 
   FormControl, 
@@ -8,12 +8,9 @@ import {
   TextField, 
   SelectChangeEvent,
   Autocomplete,
-  useTheme,
   CircularProgress
 } from '@mui/material';
 import Grid from '@mui/material/Grid';
-import SearchIcon from '@mui/icons-material/Search';
-import InputAdornment from '@mui/material/InputAdornment';
 
 interface FilterPanelProps {
   events: string[];
@@ -28,6 +25,8 @@ interface FilterPanelProps {
   onPhotographerChange: (event: React.SyntheticEvent, newValue: string | null) => void;
   onTagChange: (event: React.SyntheticEvent, newValue: string[]) => void;
   onSortChange: (event: SelectChangeEvent) => void;
+  onEventInputChange?: (event: React.SyntheticEvent, value: string) => void;
+  onPhotographerInputChange?: (event: React.SyntheticEvent, value: string) => void;
 }
 
 /**
@@ -45,9 +44,28 @@ export const FilterPanel: React.FC<FilterPanelProps> = ({
   onEventChange,
   onPhotographerChange,
   onTagChange,
-  onSortChange
+  onSortChange,
+  onEventInputChange,
+  onPhotographerInputChange
 }) => {
-  const theme = useTheme();
+  const [eventInputValue, setEventInputValue] = useState('');
+  const [photographerInputValue, setPhotographerInputValue] = useState('');
+
+  // Funkce pro zpracování změny vyhledávacího textu pro události
+  const handleEventInputChange = (event: React.SyntheticEvent, value: string) => {
+    setEventInputValue(value);
+    if (onEventInputChange) {
+      onEventInputChange(event, value);
+    }
+  };
+
+  // Funkce pro zpracování změny vyhledávacího textu pro fotografy
+  const handlePhotographerInputChange = (event: React.SyntheticEvent, value: string) => {
+    setPhotographerInputValue(value);
+    if (onPhotographerInputChange) {
+      onPhotographerInputChange(event, value);
+    }
+  };
 
   return (
     <Paper
@@ -69,6 +87,8 @@ export const FilterPanel: React.FC<FilterPanelProps> = ({
             options={photographers}
             value={photographerFilter}
             onChange={onPhotographerChange}
+            onInputChange={handlePhotographerInputChange}
+            inputValue={photographerInputValue}
             renderInput={(params) => (
               <TextField 
                 {...params} 
@@ -85,6 +105,8 @@ export const FilterPanel: React.FC<FilterPanelProps> = ({
               />
             )}
             loading={loading}
+            loadingText="Načítám fotografy..."
+            noOptionsText="Žádní fotografové nenalezeni"
             sx={{
               '& .MuiOutlinedInput-root': {
                 borderRadius: 2,
@@ -100,6 +122,8 @@ export const FilterPanel: React.FC<FilterPanelProps> = ({
             options={events}
             value={eventFilter}
             onChange={onEventChange}
+            onInputChange={handleEventInputChange}
+            inputValue={eventInputValue}
             renderInput={(params) => (
               <TextField 
                 {...params} 
@@ -116,6 +140,8 @@ export const FilterPanel: React.FC<FilterPanelProps> = ({
               />
             )}
             loading={loading}
+            loadingText="Načítám akce..."
+            noOptionsText="Žádné akce nenalezeny"
             sx={{
               '& .MuiOutlinedInput-root': {
                 borderRadius: 2,

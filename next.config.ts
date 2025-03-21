@@ -10,15 +10,28 @@ const nextConfig: NextConfig = {
   reactStrictMode: true,
   poweredByHeader: false,
   compress: true,
-  // Přidáváme proxy pro PostgREST API
-  async rewrites() {
+  async headers() {
     return [
       {
-        source: '/api/:path*',
-        destination: 'http://localhost:3001/:path*',
-      },
+        // Aplikovat CORS hlavičky na všechny cesty
+        source: "/(.*)",
+        headers: [
+          {
+            key: "Access-Control-Allow-Origin",
+            value: "*"
+          },
+          {
+            key: "Access-Control-Allow-Methods",
+            value: "GET,POST,PUT,DELETE,OPTIONS"
+          },
+          {
+            key: "Access-Control-Allow-Headers",
+            value: "Content-Type, Authorization"
+          }
+        ]
+      }
     ];
-  },
+  }
 };
 
 export default nextConfig;

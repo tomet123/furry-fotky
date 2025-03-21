@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { memo } from 'react';
 import { 
   Card, 
   CardActionArea, 
@@ -13,81 +13,109 @@ import {
   Tooltip
 } from '@mui/material';
 import FavoriteIcon from '@mui/icons-material/Favorite';
-import FavoriteBorderIcon from '@mui/icons-material/FavoriteBorder';
 import { Photo } from '@/hooks/usePhotoItems';
+import { CARD_HOVER_TRANSFORM, CARD_HOVER_SHADOW, SMALL_AVATAR_SIZE, THUMBNAIL_ASPECT_RATIO } from '@/lib/constants';
 
 interface PhotoCardProps {
   photo: Photo;
   onClick: (photo: Photo) => void;
+  onLike?: (photo: Photo) => Promise<void>;
+  onUnlike?: (photo: Photo) => Promise<void>;
 }
+
+// Stylové konstanty
+const cardStyles = {
+  height: '100%',
+  display: 'flex',
+  flexDirection: 'column',
+  borderRadius: 2,
+  border: '1px solid',
+  transition: 'transform 0.2s ease-in-out, box-shadow 0.2s ease-in-out',
+  '&:hover': {
+    transform: CARD_HOVER_TRANSFORM,
+    boxShadow: CARD_HOVER_SHADOW,
+  },
+  position: 'relative'
+};
+
+const likeBadgeStyles = {
+  position: 'absolute', 
+  top: 10, 
+  right: 10, 
+  bgcolor: 'rgba(0,0,0,0.6)', 
+  color: 'white',
+  borderRadius: '12px',
+  px: 1.5,
+  py: 0.5,
+  display: 'flex',
+  alignItems: 'center',
+  gap: 0.5,
+  zIndex: 2
+};
+
+const thumbnailStyles = {
+  position: 'relative',
+  paddingTop: THUMBNAIL_ASPECT_RATIO,
+  overflow: 'hidden',
+  borderTopLeftRadius: 8,
+  borderTopRightRadius: 8
+};
+
+const imageStyles = {
+  position: 'absolute',
+  top: 0,
+  left: 0,
+  width: '100%',
+  height: '100%',
+  objectFit: 'cover',
+  objectPosition: 'center',
+  transition: 'transform 0.3s ease-in-out',
+  '&:hover': {
+    transform: 'scale(1.05)'
+  }
+};
 
 /**
  * Komponenta pro zobrazení karty fotografie v seznamu
  */
-export const PhotoCard: React.FC<PhotoCardProps> = ({ 
+const PhotoCard: React.FC<PhotoCardProps> = ({ 
   photo, 
-  onClick,
-  onLike,
-  onUnlike 
+  onClick
 }) => {
   const theme = useTheme();
-  const [liked] = useState(false);
-  const [likeCount] = useState(photo.likes);
-  const [likeInProgress] = useState(false);
-
-
 
   return (
     <Card 
       elevation={0} 
       sx={{ 
-        height: '100%',
-        display: 'flex',
-        flexDirection: 'column',
-        borderRadius: 2,
-        border: '1px solid',
+        ...cardStyles,
         borderColor: theme.palette.mode === 'dark' ? 'rgba(255, 255, 255, 0.08)' : 'rgba(0, 0, 0, 0.06)',
-        transition: 'transform 0.2s ease-in-out, box-shadow 0.2s ease-in-out',
         '&:hover': {
-          transform: 'translateY(-4px)',
-          boxShadow: '0 6px 20px rgba(0, 0, 0, 0.1)',
+          ...cardStyles['&:hover'],
           borderColor: theme.palette.mode === 'dark' ? 'rgba(255, 255, 255, 0.15)' : 'rgba(0, 0, 0, 0.1)',
         },
-        position: 'relative'
       }}
     >
-      {/* Lajk tlačítko v pravém horním rohu - PŘESUNUTO mimo CardActionArea */}
-      <Box sx={{ 
-        position: 'absolute', 
-        top: 10, 
-        right: 10, 
-        bgcolor: 'rgba(0,0,0,0.6)', 
-        color: 'white',
-        borderRadius: '12px',
-        px: 1.5,
-        py: 0.5,
-        display: 'flex',
-        alignItems: 'center',
-        gap: 0.5,
-        zIndex: 2
-      }}
-      onClick={(e) => e.stopPropagation()}
+      {/* Lajk badge s počtem */}
+      <Box 
+        sx={likeBadgeStyles}
+        onClick={(e) => e.stopPropagation()}
       >
         <Tooltip title="Počet lajků">
           <IconButton 
             size="small" 
             sx={{ 
               color: 'white', 
-              p: 0, 
+              p: 0,
               '&:hover': { color: '#ff6b6b' } 
             }}
             disabled={true}
           >
-            {true ? <FavoriteIcon fontSize="small" color="error" /> : <FavoriteIcon fontSize="small" />}
+            <FavoriteIcon fontSize="small" color="error" />
           </IconButton>
         </Tooltip>
         <Typography variant="body2" sx={{ fontWeight: 'bold' }}>
-          {likeCount}
+          {photo.likes}
         </Typography>
       </Box>
 
@@ -101,32 +129,12 @@ export const PhotoCard: React.FC<PhotoCardProps> = ({
         }}
       >
         {/* Náhled fotky */}
-        <Box 
-          sx={{ 
-            position: 'relative',
-            paddingTop: '75%', // Poměr stran 4:3
-            overflow: 'hidden',
-            borderTopLeftRadius: 8,
-            borderTopRightRadius: 8
-          }}
-        >
+        <Box sx={thumbnailStyles}>
           <Box
             component="img"
-            src={'/api' + photo.thumbnailUrl }
+            src={photo.thumbnailUrl || undefined}
             loading="lazy"
-            sx={{
-              position: 'absolute',
-              top: 0,
-              left: 0,
-              width: '100%',
-              height: '100%',
-              objectFit: 'cover',
-              objectPosition: 'center',
-              transition: 'transform 0.3s ease-in-out',
-              '&:hover': {
-                transform: 'scale(1.05)'
-              }
-            }}
+            sx={imageStyles}
           />
         </Box>
         
@@ -159,8 +167,8 @@ export const PhotoCard: React.FC<PhotoCardProps> = ({
             }}>
               <Avatar 
                 sx={{ 
-                  width: 24, 
-                  height: 24,
+                  width: SMALL_AVATAR_SIZE, 
+                  height: SMALL_AVATAR_SIZE,
                   fontSize: '0.875rem',
                   bgcolor: 'primary.main'
                 }}
@@ -182,21 +190,29 @@ export const PhotoCard: React.FC<PhotoCardProps> = ({
               overflow: 'hidden'
             }}
           >
-            {photo.tags.slice(0, 3).map((tag) => (
-              <Chip
-                key={tag}
-                label={tag}
-                size="small"
-                sx={{
-                  height: 24,
-                  fontSize: '0.7rem',
-                  bgcolor: theme.palette.mode === 'dark' ? 'rgba(255, 255, 255, 0.08)' : 'rgba(0, 0, 0, 0.05)'
-                }}
-              />
-            ))}
+            {photo.tags && Array.isArray(photo.tags) && photo.tags.length > 0 ? (
+              photo.tags.slice(0, 3).map((tag) => (
+                <Chip
+                  key={tag}
+                  label={tag}
+                  size="small"
+                  sx={{
+                    height: 24,
+                    fontSize: '0.7rem',
+                    bgcolor: theme.palette.mode === 'dark' ? 'rgba(255, 255, 255, 0.08)' : 'rgba(0, 0, 0, 0.05)'
+                  }}
+                />
+              ))
+            ) : null}
           </Stack>
         </CardContent>
       </CardActionArea>
     </Card>
   );
-}; 
+};
+
+// Použití memo pro optimalizaci renderování
+export default memo(PhotoCard);
+
+// Export named verze pro případy, kdy je třeba neobalovat v memo
+export { PhotoCard }; 

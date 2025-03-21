@@ -1,12 +1,10 @@
 'use client';
 
-import React, { useState, useCallback, useMemo, useEffect } from 'react';
+import React, { useState, useCallback, useMemo } from 'react';
 import { 
   Container, 
   Typography, 
   Box, 
-  TextField, 
-  useTheme, 
   SelectChangeEvent,
   CircularProgress,
   Alert
@@ -31,6 +29,10 @@ export default function Photos() {
   const [photographerFilter, setPhotographerFilter] = useState<string | null>('');
   const [tagFilter, setTagFilter] = useState<string[]>([]);
   const [sortBy, setSortBy] = useState<'newest' | 'oldest' | 'most_liked'>('newest');
+  
+  // Stav pro vyhledávání v filtrech
+  const [eventSearchQuery, setEventSearchQuery] = useState('');
+  const [photographerSearchQuery, setPhotographerSearchQuery] = useState('');
   
   // Stav pro detail fotografie
   const [selectedPhoto, setSelectedPhoto] = useState<Photo | null>(null);
@@ -58,10 +60,28 @@ export default function Photos() {
     sortBy
   });
   
-  // Načtení dat pro filtry
+  // Načtení dat pro filtry s lazy loadingem
   const { tags, loading: tagsLoading } = useTags();
-  const { photographers, loading: photographersLoading } = usePhotographers();
-  const { events, loading: eventsLoading } = useEvents();
+  const { photographers, loading: photographersLoading } = usePhotographers({
+    query: photographerSearchQuery,
+    limit: 10,
+    page: 1
+  });
+  const { events, loading: eventsLoading } = useEvents({
+    query: eventSearchQuery,
+    limit: 10,
+    page: 1
+  });
+  
+  // Zpracování změny v textu pro vyhledávání akcí
+  const handleEventInputChange = useCallback((event: React.SyntheticEvent, value: string) => {
+    setEventSearchQuery(value);
+  }, []);
+  
+  // Zpracování změny v textu pro vyhledávání fotografů
+  const handlePhotographerInputChange = useCallback((event: React.SyntheticEvent, value: string) => {
+    setPhotographerSearchQuery(value);
+  }, []);
   
   // AKCE
   
@@ -84,12 +104,8 @@ export default function Photos() {
     setTagFilter([]);
     setSortBy('newest');
     setPage(1);
-  }, []);
-  
-  // Změna vyhledávacího dotazu
-  const handleSearchChange = useCallback((event: React.ChangeEvent<HTMLInputElement>) => {
-    setSearchQuery(event.target.value);
-    setPage(1); // Reset stránkování při změně vyhledávání
+    setEventSearchQuery('');
+    setPhotographerSearchQuery('');
   }, []);
   
   // Navigace mezi fotografiemi v detailu
@@ -183,6 +199,8 @@ export default function Photos() {
         onPhotographerChange={handlePhotographerChange}
         onTagChange={handleTagChange}
         onSortChange={handleSortChange}
+        onEventInputChange={handleEventInputChange}
+        onPhotographerInputChange={handlePhotographerInputChange}
         loading={tagsLoading || photographersLoading || eventsLoading}
       />
       

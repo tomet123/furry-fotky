@@ -1,5 +1,5 @@
 import { useState, useEffect, useCallback } from 'react';
-import { endpoints } from '@/lib/postgrest';
+import { endpoints } from '@/lib/api';
 
 /**
  * Hook pro získání seznamu všech dostupných tagů
@@ -19,9 +19,11 @@ export function useTags() {
         throw new Error(`Chyba při načítání tagů: ${response.statusText}`);
       }
       
-      const data = await response.json();
+      const result = await response.json();
+      // Získáme data z API odpovědi
+      const data = result.data || [];
       setTags(data.map((tag: { name: string }) => tag.name));
-    } catch (err) {
+    } catch {
       console.error('Chyba při načítání tagů:', err);
       setError((err as Error).message);
     } finally {
