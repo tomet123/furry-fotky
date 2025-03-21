@@ -9,7 +9,6 @@ import {
   Chip, 
   Stack, 
   useTheme,
-  useMediaQuery,
   IconButton,
   Tooltip
 } from '@mui/material';
@@ -20,8 +19,6 @@ import { Photo } from '@/hooks/usePhotoItems';
 interface PhotoCardProps {
   photo: Photo;
   onClick: (photo: Photo) => void;
-  onLike?: (photo: Photo) => Promise<void>;
-  onUnlike?: (photo: Photo) => Promise<void>;
 }
 
 /**
@@ -34,32 +31,11 @@ export const PhotoCard: React.FC<PhotoCardProps> = ({
   onUnlike 
 }) => {
   const theme = useTheme();
-  const isSmall = useMediaQuery(theme.breakpoints.down('sm'));
-  const [liked, setLiked] = useState(false);
-  const [likeCount, setLikeCount] = useState(photo.likes);
-  const [likeInProgress, setLikeInProgress] = useState(false);
+  const [liked] = useState(false);
+  const [likeCount] = useState(photo.likes);
+  const [likeInProgress] = useState(false);
 
-  const handleLikeClick = async () => {
-    if (likeInProgress || !onLike || !onUnlike) return;
-    
-    setLikeInProgress(true);
-    
-    try {
-      if (liked) {
-        await onUnlike(photo);
-        setLikeCount(prev => Math.max(prev - 1, 0));
-        setLiked(false);
-      } else {
-        await onLike(photo);
-        setLikeCount(prev => prev + 1);
-        setLiked(true);
-      }
-    } catch (error) {
-      console.error('Chyba při lajkování:', error);
-    } finally {
-      setLikeInProgress(false);
-    }
-  };
+
 
   return (
     <Card 
@@ -97,7 +73,7 @@ export const PhotoCard: React.FC<PhotoCardProps> = ({
       }}
       onClick={(e) => e.stopPropagation()}
       >
-        <Tooltip title={liked ? 'Odebrat z oblíbených' : 'Přidat do oblíbených'}>
+        <Tooltip title="Počet lajků">
           <IconButton 
             size="small" 
             sx={{ 
@@ -105,13 +81,9 @@ export const PhotoCard: React.FC<PhotoCardProps> = ({
               p: 0, 
               '&:hover': { color: '#ff6b6b' } 
             }}
-            onClick={(e) => {
-              e.stopPropagation();
-              handleLikeClick();
-            }}
-            disabled={likeInProgress || (!onLike && !onUnlike)}
+            disabled={true}
           >
-            {liked ? <FavoriteIcon fontSize="small" color="error" /> : <FavoriteIcon fontSize="small" />}
+            {true ? <FavoriteIcon fontSize="small" color="error" /> : <FavoriteIcon fontSize="small" />}
           </IconButton>
         </Tooltip>
         <Typography variant="body2" sx={{ fontWeight: 'bold' }}>
@@ -140,7 +112,7 @@ export const PhotoCard: React.FC<PhotoCardProps> = ({
         >
           <Box
             component="img"
-            src={photo.thumbnailUrl || `/api/image?width=600&height=450&seed=${photo.id}`}
+            src={'/api' + photo.thumbnailUrl }
             loading="lazy"
             sx={{
               position: 'absolute',

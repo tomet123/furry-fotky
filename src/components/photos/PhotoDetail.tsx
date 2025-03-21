@@ -260,7 +260,7 @@ export const PhotoDetail: React.FC<PhotoDetailProps> = ({
         {/* Samotná fotografie */}
         <Box
           component="img"
-          src={photo.imageUrl || `/api/image?width=1920&height=1080&seed=${photo.id + 50}`}
+          src={'/api' + photo.imageUrl}
           loading={mode === "dialog" ? "eager" : "lazy"}
           onLoad={handleImageLoad}
           onError={handleImageError}
@@ -301,61 +301,65 @@ export const PhotoDetail: React.FC<PhotoDetailProps> = ({
               </Typography>
             ) : (
               <Box sx={{ display: 'flex', gap: 1 }}>
-                {showLikes && (
-                  <Box sx={{ 
-                    display: 'flex',
-                    alignItems: 'center',
-                    gap: 0.5,
-                    px: 1.5,
-                    py: 0.5,
-                    borderRadius: 2,
-                    bgcolor: 'rgba(0, 0, 0, 0.3)'
-                  }}>
-                    <Tooltip title={liked ? 'Odebrat lajku' : 'Přidat lajku'}>
-                      <IconButton
-                        onClick={handleLikeClick}
-                        aria-label={liked ? 'Odebrat lajku' : 'Přidat lajku'}
-                        sx={{
-                          color: 'white',
-                          bgcolor: 'rgba(0, 0, 0, 0.3)',
-                          '&:hover': { bgcolor: 'rgba(0, 0, 0, 0.5)' },
-                          p: 1,
-                          height: 32,
-                          width: 32
-                        }}
-                        size="small"
-                      >
-                        <Box component="span" sx={{ fontSize: '1.2rem' }}>
-                          {liked ? <FavoriteIcon /> : <FavoriteBorderIcon />}
-                        </Box>
-                      </IconButton>
-                    </Tooltip>
-                    <Typography sx={{ fontWeight: 'bold', color: 'white' }}>
-                      {likeCount}
-                    </Typography>
-                  </Box>
-                )}
-                
-                {/* Tlačítko pro přepínání režimu zobrazení */}
-                {mode === "dialog" && (
-                  <IconButton
-                    onClick={toggleFitMode}
-                    aria-label={fitMode === 'contain' ? 'zvětšit na celou plochu' : 'zobrazit celou fotku'}
-                    sx={{
-                      color: 'white',
-                      bgcolor: 'rgba(0, 0, 0, 0.3)',
-                      '&:hover': { bgcolor: 'rgba(0, 0, 0, 0.5)' },
-                      p: 1,
-                      height: 32,
-                      width: 32
-                    }}
-                    size="small"
-                  >
-                    <Box component="span" sx={{ fontSize: '1.2rem' }}>
-                      {fitMode === 'contain' ? '⤢' : '◱'}
-                    </Box>
-                  </IconButton>
-                )}
+                {/* Box pro obě tlačítka společně */}
+                <Box sx={{ 
+                  display: 'flex',
+                  alignItems: 'center',
+                  gap: 0.5,
+                  px: 1.5,
+                  py: 0.5,
+                  borderRadius: 2,
+                  bgcolor: 'rgba(0, 0, 0, 0.3)'
+                }}>
+                  {showLikes && (
+                    <>
+                      <Tooltip title={liked ? 'Odebrat lajku' : 'Přidat lajku'}>
+                        <IconButton
+                          onClick={handleLikeClick}
+                          disabled={true}
+                          aria-label={liked ? 'Odebrat lajku' : 'Přidat lajku'}
+                          sx={{
+                            color: 'white',
+                            bgcolor: 'rgba(0, 0, 0, 0.3)',
+                            '&:hover': { bgcolor: 'rgba(0, 0, 0, 0.5)' },
+                            p: 1,
+                            height: 32,
+                            width: 32
+                          }}
+                          size="small"
+                        >
+                          <Box component="span" sx={{ fontSize: '1.2rem' }}>
+                            {liked ? <FavoriteIcon /> : <FavoriteBorderIcon />}
+                          </Box>
+                        </IconButton>
+                      </Tooltip>
+                      <Typography sx={{ fontWeight: 'bold', color: 'white', mr: 1 }}>
+                        {likeCount}
+                      </Typography>
+                    </>
+                  )}
+                  
+                  {/* Tlačítko pro přepínání režimu zobrazení */}
+                  {mode === "dialog" && (
+                    <IconButton
+                      onClick={toggleFitMode}
+                      aria-label={fitMode === 'contain' ? 'zvětšit na celou plochu' : 'zobrazit celou fotku'}
+                      sx={{
+                        color: 'white',
+                        bgcolor: 'rgba(0, 0, 0, 0.3)',
+                        '&:hover': { bgcolor: 'rgba(0, 0, 0, 0.5)' },
+                        p: 1,
+                        height: 32,
+                        width: 32
+                      }}
+                      size="small"
+                    >
+                      <Box component="span" sx={{ fontSize: '1.2rem' }}>
+                        {fitMode === 'contain' ? '⤢' : '◱'}
+                      </Box>
+                    </IconButton>
+                  )}
+                </Box>
               </Box>
             )}
 

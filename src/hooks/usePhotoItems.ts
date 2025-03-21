@@ -1,85 +1,93 @@
-import { useMemo } from 'react';
+import { useState, useEffect } from 'react';
+import { endpoints, preparePostgRESTUrl } from '@/lib/postgrest';
 
 export interface Photo {
   id: number;
-  event: string;
+  title?: string;
+  description?: string;
   photographer: string;
-  likes: number;
+  event: string;
   date: string;
+  likes: number;
   tags: string[];
-  imageUrl?: string;     // URL pro plnou velikost obrázku
-  thumbnailUrl?: string; // URL pro náhled obrázku
+  imageUrl?: string;
+  thumbnailUrl?: string;
 }
 
+export const usePhotoItems = () => {
+  const [photos, setPhotos] = useState<Photo[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
+
+  useEffect(() => {
+    const fetchPhotos = async () => {
+      try {
+        // Vytvoříme parametry pro získání foto detailů z PostgREST
+        const params = preparePostgRESTUrl(endpoints.photoDetails);
+        
+        // Nastavíme limity a řazení
+        params.append('limit', '20');
+        params.append('order', 'date.desc');
+        
+        // Sestavení URL s parametry
+        const url = `${endpoints.photoDetails}?${params.toString()}`;
+        
+        const response = await fetch(url);
+        
+        if (!response.ok) {
+          throw new Error(`Chyba při načítání fotografií: ${response.statusText}`);
+        }
+        
+        const data = await response.json();
+        
+        // Transformace dat z API
+        const transformedData = data.map((item: any) => ({
+          ...item,
+          imageUrl: item.image_url,
+          thumbnailUrl: item.thumbnail_url
+        }));
+        
+        setPhotos(transformedData);
+      } catch (error) {
+        console.error('Chyba při načítání fotografií:', error);
+        setError((error as Error).message);
+      } finally {
+        setLoading(false);
+      }
+    };
+
+    fetchPhotos();
+  }, []);
+
+  return { photos, loading, error };
+};
+
+// Export statických dat, která budeme používat v ukázkách
 export const EVENTS = [
-  'Furmeet Praha', 
-  'Czech Furry Con', 
-  'FurFest', 
-  'Pelíškování', 
-  'Fotomeet'
+  "Mikulášská besídka 2022",
+  "FurryFest 2022",
+  "Pawladin 2023",
+  "Furšíkův výlet 2023",
+  "JarniSraz 2023"
 ];
 
 export const PHOTOGRAPHERS = [
-  'FOX', 
-  'Skia', 
-  'Tygr', 
-  'Panda', 
-  'Vlk', 
-  'Otter', 
-  'Šakal'
+  "Michal Novák",
+  "Jana Svobodová",
+  "Petr Černý",
+  "Eva Procházková",
+  "Tomáš Králík"
 ];
 
 export const TAGS = [
-  'fursuit', 
-  'částečný fursuit', 
-  'krajina', 
-  'město', 
-  'portrét', 
-  'skupina', 
-  'příroda', 
-  'akce', 
-  'kostým', 
-  'umělecké', 
-  'černobílé', 
-  'barevné'
-];
-
-/**
- * Hook pro získání dat fotografií pro ukázkové účely
- * V produkci by tyto data pocházely z API
- */
-export function usePhotoItems(): Photo[] {
-  const photos = useMemo(() => {
-    const items: Photo[] = [];
-    
-    // Generování 24 ukázkových fotografií
-    for (let i = 1; i <= 50; i++) {
-      // Náhodný počet tagů (1-4)
-      const numTags = Math.floor(Math.random() * 4) + 1;
-      const photoTags: string[] = [];
-      
-      // Náhodný výběr tagů bez opakování
-      const shuffledTags = [...TAGS].sort(() => 0.5 - Math.random());
-      for (let j = 0; j < numTags; j++) {
-        photoTags.push(shuffledTags[j]);
-      }
-      
-      // Generování náhodného data v posledním roce
-      const date = new Date();
-      date.setDate(date.getDate() - Math.floor(Math.random() * 365));
-      
-      items.push({
-        id: i,
-        event: EVENTS[Math.floor(Math.random() * EVENTS.length)],
-        photographer: PHOTOGRAPHERS[Math.floor(Math.random() * PHOTOGRAPHERS.length)],
-        likes: Math.floor(Math.random() * 50) + 1,
-        date: date.toISOString().slice(0, 10),
-        tags: photoTags
-      });
-    }
-    
-    return items;
-  }, []);
-  
-  return photos;
-} 
+  "venku",
+  "uvnitř",
+  "skupinové",
+  "portrét",
+  "akce",
+  "kostým",
+  "fursuit",
+  "večer",
+  "zábava",
+  "jídlo"
+]; 
