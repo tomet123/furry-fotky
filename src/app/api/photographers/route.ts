@@ -1,7 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { Photographer, handleGetRequest } from '@/lib/api-helpers';
-import { getUserFromToken } from '@/lib/auth';
-import { JWT_STORAGE_KEY } from '@/lib/constants';
+import { authenticateRequest, createAuthErrorResponse, isAdmin } from '@/lib/api-auth';
 import { query } from '@/lib/db';
 
 // GET /api/photographers - Získat seznam fotografů
@@ -18,6 +17,7 @@ export async function GET(request: NextRequest): Promise<NextResponse> {
 interface PhotographerData {
   name: string;
   bio?: string;
+  profile?: string;
 }
 
 function validatePhotographerData(data: PhotographerData): { valid: boolean, message?: string } {
@@ -30,26 +30,14 @@ function validatePhotographerData(data: PhotographerData): { valid: boolean, mes
 
 export async function POST(request: NextRequest): Promise<NextResponse> {
   try {
-    // Kontrola autentizace
-    const token = request.cookies.get(JWT_STORAGE_KEY)?.value;
+    // Autentizace uživatele
+    const authResult = await authenticateRequest(request);
     
-    if (!token) {
-      return NextResponse.json(
-        { success: false, message: 'Nejste přihlášeni' },
-        { status: 401 }
-      );
+    if (!authResult.authenticated || !authResult.user) {
+      return createAuthErrorResponse(authResult.message || 'Nejste přihlášeni');
     }
 
-    // Získání aktuálního uživatele
-    const userResponse = await getUserFromToken(token);
-    if (!userResponse.success || !userResponse.user) {
-      return NextResponse.json(
-        { success: false, message: 'Neplatný token' },
-        { status: 401 }
-      );
-    }
-
-    const user = userResponse.user;
+    const user = authResult.user;
 
     // Kontrola, zda uživatel již nemá profil fotografa
     if (user.photographer_id) {
@@ -73,10 +61,10 @@ export async function POST(request: NextRequest): Promise<NextResponse> {
 
     // Vytvoření profilu fotografa
     const result = await query(
-      `INSERT INTO photographers (name, bio, is_beginner) 
-       VALUES ($1, $2, TRUE) 
-       RETURNING id, name, bio, avatar_url, is_beginner, created_at`,
-      [data.name, data.bio || null]
+      `INSERT INTO photographers (name, bio, profile, is_beginner) 
+       VALUES ($1, $2, $3, TRUE) 
+       RETURNING id, name, bio, profile, avatar_url, is_beginner, created_at`,
+      [data.name, data.bio || null, data.profile || null]
     );
 
     if (result.rowCount === 0) {

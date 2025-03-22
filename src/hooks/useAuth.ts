@@ -1,5 +1,5 @@
 import { useState, useEffect, useCallback } from 'react';
-import { endpoints } from '@/lib/api';
+import { endpoints, authorizedFetch } from '@/lib/api';
 import { JWT_STORAGE_KEY } from '@/lib/constants';
 import { User } from '@/lib/auth';
 
@@ -27,9 +27,9 @@ interface UseAuthReturn {
   isLoading: boolean;
   isAuthenticated: boolean;
   error: string | null;
-  login: (params: LoginParams) => Promise<void>;
+  login: (username: string, password: string) => Promise<boolean>;
   register: (params: RegisterParams) => Promise<boolean>;
-  logout: () => void;
+  logout: () => Promise<boolean>;
   clearError: () => void;
   refreshUser: () => Promise<void>;
 }
@@ -41,8 +41,13 @@ export function useAuth(): UseAuthReturn {
 
   // Načtení přihlášeného uživatele
   const fetchUser = useCallback(async () => {
+    // Nastavím, že probíhá načítání - toto nastavení bude platit i když se nevykoná žádný požadavek
+    console.log('[useAuth] fetchUser: Začínám proces načítání uživatele, isLoading=true');
+    setIsLoading(true);
+    
     // Kontrola, zda jsme na klientovi
     if (typeof window === 'undefined') {
+      console.log('[useAuth] fetchUser: Nejsme na klientovi, končím');
       setIsLoading(false);
       return;
     }
@@ -51,107 +56,108 @@ export function useAuth(): UseAuthReturn {
     const token = localStorage.getItem(JWT_STORAGE_KEY);
     
     if (!token) {
-      // debug('Token nenalezen v localStorage');
+      console.log('[useAuth] fetchUser: Token nenalezen v localStorage, končím');
       setIsLoading(false);
       return;
     }
 
-    // debug(`Token nalezen: ${token.substring(0, 15)}...${token.substring(token.length - 5)}`);
-    // debug(`Token délka: ${token.length}`);
-
     try {
-      setIsLoading(true);
+      // Tady již nemusím znovu nastavovat isLoading, protože je nastaveno výše
+      console.log('[useAuth] fetchUser: Token nalezen, odesílám požadavek na API');
       
       // debug('Odesílám požadavek na endpoint currentUser:', endpoints.currentUser);
       
-      const response = await fetch(endpoints.currentUser, {
-        method: 'GET',
-        headers: {
-          'Authorization': `Bearer ${token}`,
-          'Content-Type': 'application/json',
-          'Accept': 'application/json'
-        }
-      });
+      // Použití authorizedFetch namísto ručního přidávání Authorization hlavičky
+      const response = await authorizedFetch(endpoints.currentUser);
 
-      // debug(`Odpověď ze serveru: ${response.status} ${response.statusText}`);
+      console.log(`[useAuth] fetchUser: Odpověď ze serveru: ${response.status} ${response.statusText}`);
       
       if (!response.ok) {
         const errorData = await response.json();
-        // debug('Chyba odpovědi:', errorData);
+        console.log('[useAuth] fetchUser: Chyba odpovědi:', errorData);
         throw new Error(errorData.message || 'Nepodařilo se načíst informace o uživateli');
       }
 
       const data = await response.json();
-      // debug('Odpověď ze serveru:', data);
+      console.log('[useAuth] fetchUser: Data získána:', data.success, !!data.user);
       
       if (data.success && data.user) {
-        // debug('Nastavuji uživatele z odpovědi:', data.user);
+        console.log('[useAuth] fetchUser: Nastavuji uživatele');
         setUser(data.user);
       } else {
-        // debug('Neočekávaný formát dat uživatele:', data);
+        console.log('[useAuth] fetchUser: Neplatný formát dat');
         throw new Error('Neplatný formát dat uživatele');
       }
-    } catch {
-      // debug('Chyba při načítání uživatele:', err);
+    } catch (error) {
+      console.log('[useAuth] fetchUser: Chyba při načítání:', error);
       localStorage.removeItem(JWT_STORAGE_KEY);
       setUser(null);
     } finally {
+      console.log('[useAuth] fetchUser: Dokončeno načítání, isLoading=false');
       setIsLoading(false);
-      // debug('Dokončeno načítání uživatele');
     }
   }, []);
 
-  // Načtení uživatele při prvním renderování
+  // Načtení uživatele při prvním načtení aplikace
   useEffect(() => {
-    if (typeof window !== 'undefined') {
-      // debug('Automatické načítání uživatele při načtení stránky');
+    // Spustíme fetchUser pouze jednou při prvním renderování
+    console.log('[useAuth] První načtení aplikace, spouštím fetchUser');
+    fetchUser();
+  }, []); // Prázdné dependency array znamená spuštění pouze při montování komponenty
+
+  // Sledování změn uživatele
+  useEffect(() => {
+    // Pokud se uživatel odhlásí nebo nastane chyba, isLoading bude false a user bude null
+    // Toto zajistí, že se useEffect nespustí při prvním načtení (to řeší předchozí useEffect)
+    if (!user && !isLoading) {
+      console.log('[useAuth] Změna stavu - uživatel není přihlášen a načítání skončilo, zkouším znovu fetchUser');
       fetchUser();
     }
-  }, [fetchUser]);
+  }, [user, isLoading, fetchUser]);
 
-  // Přihlášení uživatele
-  const login = useCallback(async (params: LoginParams) => {
-    // debug('Začínám proces přihlášení', { username: params.username });
+  const login = useCallback(async (username: string, password: string) => {
     try {
       setIsLoading(true);
-      setError(null);
-
-      // debug('Odesílám požadavek na login endpoint:', endpoints.login);
+      
+      // debug('Odesílání přihlašovacích údajů na:', endpoints.login);
+      
       const response = await fetch(endpoints.login, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
-          'Accept': 'application/json'
         },
-        body: JSON.stringify(params)
+        body: JSON.stringify({ username, password }),
+        credentials: 'include', // Pro zachování cookies
       });
 
-      // debug(`Odpověď na přihlášení: ${response.status} ${response.statusText}`);
+      // debug(`Odpověď ze serveru: ${response.status} ${response.statusText}`);
       
       const data = await response.json();
-      // debug('Odpověď ze serveru:', data);
-
+      
+      // debug('Odpověď serveru:', data);
+      
       if (!response.ok) {
-        throw new Error(data.message || 'Přihlášení se nezdařilo');
+        throw new Error(data.message || 'Přihlášení selhalo');
       }
-
-      if (data.success && data.token && data.user) {
+      
+      if (data.token) {
+        // debug('Token získán z odpovědi, ukládám ho do localStorage');
         localStorage.setItem(JWT_STORAGE_KEY, data.token);
-        // debug('Token uložen do localStorage');
-        
-        // debug('Nastavuji přihlášeného uživatele:', data.user);
+      } else {
+        // debug('Token nebyl součástí odpovědi, pokračuji bez nastavení tokenu');
+      }
+      
+      if (data.user) {
+        // debug('Nastavuji uživatele z odpovědi:', data.user);
         setUser(data.user);
       } else {
-        throw new Error('Neplatná odpověď ze serveru při přihlášení');
+        // debug('Uživatel nebyl součástí odpovědi');
       }
-    } catch {
-      // debug('Chyba při přihlašování:', err);
-      if (err instanceof Error) {
-        setError(err.message);
-      } else {
-        setError('Při přihlašování došlo k chybě');
-      }
-      throw err;
+      
+      return true;
+    } catch (error) {
+      console.error('Chyba při přihlašování:', error);
+      return false;
     } finally {
       setIsLoading(false);
     }
@@ -184,10 +190,10 @@ export function useAuth(): UseAuthReturn {
       }
 
       return data.success || false;
-    } catch {
-      // debug('Chyba při registraci:', err);
-      if (err instanceof Error) {
-        setError(err.message);
+    } catch (error) {
+      // debug('Chyba při registraci:', error);
+      if (error instanceof Error) {
+        setError(error.message);
       } else {
         setError('Při registraci došlo k chybě');
       }
@@ -197,31 +203,33 @@ export function useAuth(): UseAuthReturn {
     }
   }, []);
 
-  // Odhlášení uživatele
   const logout = useCallback(async () => {
-    // debug('Odhlašuji uživatele');
     try {
-      // Volání API pro přihlášení
-      const response = await fetch('/api/auth/logout', {
+      setIsLoading(true);
+      
+      // debug('Odesílání požadavku na odhlášení:', endpoints.logout);
+      
+      const response = await fetch(endpoints.logout, {
         method: 'POST',
-        credentials: 'include', 
+        credentials: 'include', // Pro odstranění cookies
       });
-
-      if (!response.ok) {
-        throw new Error('Nepodařilo se odhlásit');
-      }
-
-      // Vyčištění stavu po odhlášení
+      
+      // debug(`Odpověď ze serveru: ${response.status} ${response.statusText}`);
+      
+      // Odstraníme token a uživatele i když server selže
+      localStorage.removeItem(JWT_STORAGE_KEY);
+      
+      setUser(null);
+      
+      return true;
+    } catch (error) {
+      console.error('Chyba při odhlašování:', error);
+      // I v případě chyby odstraníme token a uživatele
       localStorage.removeItem(JWT_STORAGE_KEY);
       setUser(null);
+      return false;
+    } finally {
       setIsLoading(false);
-      setError('');
-
-      return { success: true };
-    } catch {
-      setIsLoading(false);
-      setError('Nepodařilo se odhlásit');
-      return { success: false, message: 'Nepodařilo se odhlásit' };
     }
   }, []);
 
@@ -243,14 +251,8 @@ export function useAuth(): UseAuthReturn {
     if (!token) return;
 
     try {
-      const response = await fetch(endpoints.currentUser, {
-        method: 'GET',
-        headers: {
-          'Authorization': `Bearer ${token}`,
-          'Content-Type': 'application/json',
-          'Accept': 'application/json'
-        }
-      });
+      // Použití authorizedFetch namísto ručního přidávání Authorization hlavičky
+      const response = await authorizedFetch(endpoints.currentUser);
       
       if (!response.ok) {
         throw new Error('Nepodařilo se aktualizovat informace o uživateli');
@@ -259,11 +261,12 @@ export function useAuth(): UseAuthReturn {
       const data = await response.json();
       
       if (data.success && data.user) {
-        console.log('Aktualizuji uživatelská data:', data.user);
         setUser(data.user);
+      } else {
+        throw new Error('Neplatný formát dat uživatele');
       }
-    } catch {
-      console.error('Error refreshing user data:', err);
+    } catch (error) {
+      console.error('Chyba při aktualizaci uživatele:', error);
     }
   }, [user]);
 

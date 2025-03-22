@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useCallback, memo } from 'react';
+import { useState, useCallback, memo, useRef, useEffect } from 'react';
 import {
   AppBar,
   Box,
@@ -21,6 +21,7 @@ import {
   useMediaQuery,
   useTheme,
   Stack,
+  CircularProgress,
 } from '@mui/material';
 import Link from 'next/link';
 import { useAuthContext } from '@/components/context/AuthContext';
@@ -79,6 +80,7 @@ const photographerPages = [
   { title: 'Moje fotky', path: '/photographer/photos' },
   { title: 'Nahrát fotky', path: '/photographer/upload' },
   { title: 'Statistiky', path: '/photographer/stats' },
+  { title: 'Akce pro fotografy', path: '/photographer/events' },
 ];
 
 // Menu pro organizátory
@@ -90,38 +92,71 @@ const organizerPages = [
 
 // Položky uživatelského menu
 const userSettings = [
-  { title: 'Profil', href: '/profile' },
   { title: 'Nastavení', href: '/settings' },
 ];
 
 const Header = () => {
   const theme = useTheme();
   const isMobile = useMediaQuery(theme.breakpoints.down('md'));
-  const { user, isAuthenticated, logout } = useAuthContext();
+  const { user, isAuthenticated, logout, isLoading } = useAuthContext();
+  
+  // Debugovací výpisy
+  console.log('[Header] Rendering header with auth state:', {
+    isAuthenticated,
+    isLoading,
+    user: user ? {
+      id: user.id,
+      username: user.username,
+      role: user.role,
+      photographer_id: user.photographer_id,
+      organizer_id: user.organizer_id,
+    } : null
+  });
+  
+  // Přidání ref pro sledování, zda je komponenta mounted
+  const isMounted = useRef(false);
   
   // Stav pro uživatelské menu
   const [anchorElUser, setAnchorElUser] = useState<null | HTMLElement>(null);
   // Stav pro mobilní menu
   const [mobileOpen, setMobileOpen] = useState(false);
 
+  // Effect pro nastavení mounted stavu
+  useEffect(() => {
+    isMounted.current = true;
+    
+    // Cleanup při odmontování
+    return () => {
+      isMounted.current = false;
+    };
+  }, []);
+
   // Funkce pro otevření/zavření uživatelského menu
   const handleOpenUserMenu = useCallback((event: React.MouseEvent<HTMLElement>) => {
-    setAnchorElUser(event.currentTarget);
+    if (isMounted.current) {
+      setAnchorElUser(event.currentTarget);
+    }
   }, []);
 
   const handleCloseUserMenu = useCallback(() => {
-    setAnchorElUser(null);
+    if (isMounted.current) {
+      setAnchorElUser(null);
+    }
   }, []);
 
   // Funkce pro přepínání mobilního menu
   const handleDrawerToggle = useCallback(() => {
-    setMobileOpen((prevState) => !prevState);
+    if (isMounted.current) {
+      setMobileOpen((prevState) => !prevState);
+    }
   }, []);
 
   // Funkce pro odhlášení
   const handleLogout = useCallback(() => {
     logout();
-    handleCloseUserMenu();
+    if (isMounted.current) {
+      handleCloseUserMenu();
+    }
   }, [logout, handleCloseUserMenu]);
 
   // Obsah mobilního menu
@@ -243,6 +278,51 @@ const Header = () => {
               >
                 <ListItemText 
                   primary="Administrace" 
+                  primaryTypographyProps={{ 
+                    fontWeight: 'bold',
+                  }}
+                />
+              </ListItemButton>
+            </ListItem>
+          </>
+        )}
+        
+        {/* Tlačítka přihlášení a registrace v mobilním menu */}
+        {!isAuthenticated && !isLoading && (
+          <>
+            <Divider sx={{ my: 1 }} />
+            <ListItem disablePadding>
+              <ListItemButton
+                component={Link}
+                href="/login"
+                sx={{ 
+                  textAlign: 'center',
+                  '&:hover': menuItemHoverStyle,
+                }}
+              >
+                <ListItemText 
+                  primary="Přihlásit" 
+                  primaryTypographyProps={{ 
+                    fontWeight: 'medium' 
+                  }}
+                />
+              </ListItemButton>
+            </ListItem>
+            <ListItem disablePadding>
+              <ListItemButton
+                component={Link}
+                href="/register"
+                sx={{ 
+                  textAlign: 'center',
+                  bgcolor: 'primary.main',
+                  color: 'white',
+                  '&:hover': {
+                    bgcolor: 'primary.dark',
+                  },
+                }}
+              >
+                <ListItemText 
+                  primary="Registrovat" 
                   primaryTypographyProps={{ 
                     fontWeight: 'bold',
                   }}
@@ -411,7 +491,9 @@ const Header = () => {
 
           {/* Uživatelské menu nebo přihlašovací tlačítka */}
           <Box sx={{ flexGrow: 0 }}>
-            {isAuthenticated ? (
+            {isLoading ? (
+              <CircularProgress size={24} color="inherit" />
+            ) : isAuthenticated ? (
               <>
                 <Stack direction="row" alignItems="center" spacing={0.5}>
                   {isMobile ? null : (

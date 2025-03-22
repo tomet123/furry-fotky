@@ -20,10 +20,11 @@ interface ProfileSettingsData {
 }
 
 export default function ProfileSettingsForm() {
-  const { user, refreshUser } = useAuthContext();
+  const { user, refreshUser, isLoading: authLoading } = useAuthContext();
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [success, setSuccess] = useState(false);
+  const [isDataReady, setIsDataReady] = useState(false);
   
   // Formulářová data - inicializace s prázdnými hodnotami
   const [formData, setFormData] = useState<ProfileSettingsData>({
@@ -38,6 +39,7 @@ export default function ProfileSettingsForm() {
         username: user.username || '',
         email: user.email || '',
       });
+      setIsDataReady(true);
     }
   }, [user]);
 
@@ -115,7 +117,7 @@ export default function ProfileSettingsForm() {
       } else {
         throw new Error('Při ukládání nastavení profilu došlo k chybě.');
       }
-    } catch {
+    } catch (err) {
       setError(err instanceof Error ? err.message : 'Při ukládání nastavení profilu došlo k chybě.');
       console.error('Error saving profile settings:', err);
     } finally {
@@ -131,6 +133,16 @@ export default function ProfileSettingsForm() {
     setSuccess(false);
   };
 
+  // Zobrazujeme načítání, dokud nejsou data k dispozici
+  if (authLoading || !isDataReady) {
+    return (
+      <Paper elevation={1} sx={{ p: 3, mb: 3, display: 'flex', justifyContent: 'center', alignItems: 'center', minHeight: 200 }}>
+        <CircularProgress />
+      </Paper>
+    );
+  }
+
+  // Pokud není uživatel, zobrazíme zprávu
   if (!user) {
     return (
       <Typography variant="body1">
@@ -147,6 +159,7 @@ export default function ProfileSettingsForm() {
       
       <Box component="form" onSubmit={handleSubmit} noValidate>
         <TextField
+          key="username-field"
           margin="normal"
           required
           fullWidth
@@ -159,6 +172,7 @@ export default function ProfileSettingsForm() {
         />
         
         <TextField
+          key="email-field"
           margin="normal"
           required
           fullWidth

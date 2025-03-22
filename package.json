@@ -15,6 +15,7 @@
     "@mui/icons-material": "^6.4.8",
     "@mui/material": "^6.4.8",
     "@types/uuid": "^10.0.0",
+    "@uiw/react-md-editor": "^4.0.5",
     "@vercel/postgres": "^0.10.0",
     "bcrypt": "^5.1.1",
     "jsonwebtoken": "^9.0.2",

@@ -3,11 +3,6 @@
 import { createContext, useContext, ReactNode } from 'react';
 import { useAuth, User } from '@/hooks/useAuth';
 
-interface LoginParams {
-  username: string;
-  password: string;
-}
-
 interface RegisterParams {
   username: string;
   email: string;
@@ -19,9 +14,9 @@ interface AuthContextProps {
   isLoading: boolean;
   isAuthenticated: boolean;
   error: string | null;
-  login: (params: LoginParams) => Promise<void>;
+  login: (username: string, password: string) => Promise<boolean>;
   register: (params: RegisterParams) => Promise<boolean>;
-  logout: () => void;
+  logout: () => Promise<boolean>;
   clearError: () => void;
   refreshUser: () => Promise<void>;
 }

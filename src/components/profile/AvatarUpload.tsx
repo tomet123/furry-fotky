@@ -100,7 +100,7 @@ export default function AvatarUpload({ currentAvatarId, username, onAvatarUpdate
       } else {
         throw new Error('Neočekávaný formát odpovědi ze serveru.');
       }
-    } catch {
+    } catch(err) {
       setError(err instanceof Error ? err.message : 'Při nahrávání obrázku došlo k chybě.');
       console.error('Error uploading avatar:', err);
     } finally {

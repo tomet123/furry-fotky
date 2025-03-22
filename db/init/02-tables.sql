@@ -3,6 +3,7 @@ CREATE TABLE photographers (
   id SERIAL PRIMARY KEY,
   name TEXT NOT NULL,
   bio TEXT,
+  profile TEXT,
   is_beginner BOOLEAN DEFAULT TRUE,
   created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW()
 );
@@ -56,6 +57,15 @@ CREATE TABLE storage.avatars (
   id SERIAL PRIMARY KEY,
   file_data BYTEA NOT NULL,
   content_type TEXT NOT NULL,
+  created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW()
+);
+
+CREATE TABLE storage.profile_images (
+  id SERIAL PRIMARY KEY,
+  photographer_id INTEGER NOT NULL REFERENCES photographers(id),
+  file_data BYTEA NOT NULL,
+  content_type TEXT NOT NULL,
+  original_name TEXT,
   created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW()
 );
 

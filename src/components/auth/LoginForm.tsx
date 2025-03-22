@@ -66,9 +66,9 @@ export default function LoginForm() {
     
     try {
       debug('Volám login funkci');
-      await login({ username, password });
+      await login(username, password);
       debug('Login funkce dokončena');
-    } catch {
+    } catch (err) {
       debug('Chyba při přihlašování:', err);
       setFormError(err instanceof Error ? err.message : 'Při přihlašování došlo k chybě');
     }

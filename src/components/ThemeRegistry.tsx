@@ -5,17 +5,38 @@ import CssBaseline from '@mui/material/CssBaseline';
 import theme from '@/lib/theme';
 import { StyledEngineProvider } from '@mui/material/styles';
 import { useServerInsertedHTML } from 'next/navigation';
-import { useState } from 'react';
+import { useState, useRef } from 'react';
 import createCache from '@emotion/cache';
 import { CacheProvider } from '@emotion/react';
+
+// Vytvoření Emotion cache s optimalizací pro SSR a klient
+const createEmotionCache = () => {
+  return createCache({
+    key: 'mui-style',
+    prepend: true,
+    stylisPlugins: [] // Zjednodušené pluginy
+  });
+};
 
 export default function ThemeRegistry({
   children,
 }: {
   children: React.ReactNode;
 }) {
-  // Vytvoříme cahce klienta na straně klienta
+  const isClient = typeof document !== 'undefined';
+  const emotionCache = useRef(isClient ? createEmotionCache() : null);
+  
+  // Vytvoříme cache pro serveru
   const [{ cache, flush }] = useState(() => {
+    // Na klientské straně použijeme existující cache
+    if (emotionCache.current) {
+      return {
+        cache: emotionCache.current,
+        flush: () => []
+      };
+    }
+    
+    // Na serverové straně vytvoříme nový cache
     const cache = createCache({ key: 'mui-cache', prepend: true });
     cache.compat = true;
     const prevInsert = cache.insert;
@@ -61,7 +82,7 @@ export default function ThemeRegistry({
   
   return (
     <CacheProvider value={cache}>
-      <StyledEngineProvider injectFirst>
+      <StyledEngineProvider>
         <ThemeProvider theme={theme}>
           <CssBaseline />
           {children}

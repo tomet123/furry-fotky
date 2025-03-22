@@ -7,6 +7,7 @@ import ProtectedRoute from '@/components/ProtectedRoute';
 import AvatarUpload from '@/components/profile/AvatarUpload';
 import ProfileSettingsForm from '@/components/profile/ProfileSettingsForm';
 import PasswordChangeForm from '@/components/profile/PasswordChangeForm';
+import PhotographerForm from '@/components/profile/PhotographerForm';
 
 export default function SettingsPage() {
   const { user } = useAuthContext();
@@ -53,6 +54,7 @@ export default function SettingsPage() {
               >
                 <Tab label="Profil" />
                 <Tab label="Zabezpečení" />
+                <Tab label="Fotograf" />
               </Tabs>
             </Paper>
           </Box>
@@ -73,6 +75,12 @@ export default function SettingsPage() {
             {activeTab === 1 && (
               <Box>
                 <PasswordChangeForm userId={user?.id || 0} />
+              </Box>
+            )}
+            
+            {activeTab === 2 && (
+              <Box>
+                <PhotographerForm />
               </Box>
             )}
             

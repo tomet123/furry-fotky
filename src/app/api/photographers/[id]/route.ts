@@ -1,12 +1,17 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { getUserFromToken } from '@/lib/auth';
-import { JWT_STORAGE_KEY } from '@/lib/constants';
 import { query } from '@/lib/db';
+import { 
+  authenticateRequest, 
+  createAuthErrorResponse, 
+  createPermissionErrorResponse,
+  canEditPhotographer
+} from '@/lib/api-auth';
 
 // Validace dat
 interface PhotographerData {
   name: string;
   bio?: string;
+  profile?: string;
 }
 
 function validatePhotographerData(data: PhotographerData): { valid: boolean, message?: string } {
@@ -35,7 +40,7 @@ export async function GET(
 
     // Získání detailu fotografa
     const result = await query(
-      `SELECT id, name, bio, avatar_url, is_beginner, created_at 
+      `SELECT id, name, bio, profile, avatar_url, is_beginner, created_at 
        FROM photographers 
        WHERE id = $1`,
       [photographerId]
@@ -101,33 +106,18 @@ export async function PUT(
       );
     }
 
-    // Kontrola autentizace
-    const token = request.cookies.get(JWT_STORAGE_KEY)?.value;
+    // Autentizace uživatele
+    const authResult = await authenticateRequest(request);
     
-    if (!token) {
-      return NextResponse.json(
-        { success: false, message: 'Nejste přihlášeni' },
-        { status: 401 }
-      );
+    if (!authResult.authenticated || !authResult.user) {
+      return createAuthErrorResponse(authResult.message || 'Nejste přihlášeni');
     }
 
-    // Získání aktuálního uživatele
-    const userResponse = await getUserFromToken(token);
-    if (!userResponse.success || !userResponse.user) {
-      return NextResponse.json(
-        { success: false, message: 'Neplatný token' },
-        { status: 401 }
-      );
-    }
-
-    const user = userResponse.user;
+    const user = authResult.user;
 
     // Kontrola, zda uživatel má právo upravit tohoto fotografa
-    if (user.photographer_id !== parseInt(photographerId)) {
-      return NextResponse.json(
-        { success: false, message: 'Nemáte oprávnění upravovat tento profil' },
-        { status: 403 }
-      );
+    if (!canEditPhotographer(user, photographerId)) {
+      return createPermissionErrorResponse('Nemáte oprávnění upravovat tento profil');
     }
 
     // Zpracování dat z požadavku
@@ -145,10 +135,10 @@ export async function PUT(
     // Aktualizace profilu fotografa
     const result = await query(
       `UPDATE photographers 
-       SET name = $1, bio = $2 
-       WHERE id = $3 
-       RETURNING id, name, bio, avatar_url, is_beginner, created_at`,
-      [data.name, data.bio || null, photographerId]
+       SET name = $1, bio = $2, profile = $3 
+       WHERE id = $4 
+       RETURNING id, name, bio, profile, avatar_url, is_beginner, created_at`,
+      [data.name, data.bio || null, data.profile || null, photographerId]
     );
 
     if (result.rowCount === 0) {

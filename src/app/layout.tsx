@@ -25,6 +25,9 @@ export default function RootLayout({
 }>) {
   return (
     <html lang="cs">
+      <head>
+        <meta name="emotion-insertion-point" content="" />
+      </head>
       <body className={roboto.className} suppressHydrationWarning>
         <ThemeRegistry>
           <AuthProvider>
