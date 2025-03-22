@@ -8,9 +8,10 @@ export default function Header() {
 
   // Zjištění aktivní záložky podle aktuální cesty
   const getTabValue = () => {
-    if (pathname === '/galerie') return 0;
-    if (pathname === '/akce') return 1;
-    if (pathname === '/uzivatele') return 2;
+    if (pathname === '/fotky' || pathname?.startsWith('/fotky/')) return 0;
+    if (pathname === '/galerie') return 1;
+    if (pathname === '/akce') return 2;
+    if (pathname === '/uzivatele') return 3;
     return false;
   };
 
@@ -38,7 +39,12 @@ export default function Header() {
             sx={{ flexGrow: 1, display: { xs: 'none', sm: 'flex' } }}
           >
             <Tab 
-              label="Fotogalerie" 
+              label="Fotografie" 
+              component={Link} 
+              href="/fotky" 
+            />
+            <Tab 
+              label="Galerie" 
               component={Link} 
               href="/galerie" 
             />
