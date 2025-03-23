@@ -19,6 +19,7 @@ import FavoriteIcon from '@mui/icons-material/Favorite';
 import FavoriteBorderIcon from '@mui/icons-material/FavoriteBorder';
 import { Photo } from '@/app/actions/photos';
 import { getPhotoById } from '@/app/actions/photos';
+import { PhotoFooter } from './PhotoFooter';
 
 // Stylové konstanty
 const MAX_WIDTH_PERCENTAGE = 0.75; // Maximální šířka jako procento viewportu
@@ -250,10 +251,6 @@ export const PhotoDetailModal: React.FC<PhotoDetailModalProps> = ({
     }
   };
 
-  const toggleFitMode = () => {
-    setFitMode(prev => prev === 'contain' ? 'cover' : 'contain');
-  };
-
   const handleDownload = () => {
     const downloadLink = document.createElement('a');
     downloadLink.href = currentPhoto.imageUrl;
@@ -261,8 +258,39 @@ export const PhotoDetailModal: React.FC<PhotoDetailModalProps> = ({
     downloadLink.click();
   };
 
-  const handleImageLoad = (event: React.SyntheticEvent<HTMLImageElement>) => {
-    const img = event.target as HTMLImageElement;
+  const calculateImageSize = () => {
+    if (!windowSize.width || !windowSize.height || !imgDimensions.width || !imgDimensions.height) {
+      return { width: '100%', height: '100%' };
+    }
+
+    const maxWidth = windowSize.width * MAX_WIDTH_PERCENTAGE;
+    const maxHeight = windowSize.height * MAX_HEIGHT_PERCENTAGE;
+    
+    // Poměr stran obrázku
+    const imageRatio = imgDimensions.width / imgDimensions.height;
+    
+    // Výpočet rozměrů s ohledem na maximální povolené hodnoty
+    let width = imgDimensions.width;
+    let height = imgDimensions.height;
+    
+    if (width > maxWidth) {
+      width = maxWidth;
+      height = width / imageRatio;
+    }
+    
+    if (height > maxHeight) {
+      height = maxHeight;
+      width = height * imageRatio;
+    }
+    
+    return { 
+      width: `${width}px`, 
+      height: `${height}px` 
+    };
+  };
+
+  const handleImageLoad = (e: React.SyntheticEvent<HTMLImageElement>) => {
+    const img = e.currentTarget;
     setImgDimensions({
       width: img.naturalWidth,
       height: img.naturalHeight
@@ -274,129 +302,90 @@ export const PhotoDetailModal: React.FC<PhotoDetailModalProps> = ({
     setLoading(false);
   };
 
-  // Výpočet rozměrů modálního okna
-  const modalWidth = fullScreen ? '100%' : 
-    isSmall ? '95vw' : 
-    imgDimensions.width > 0 ? 
-      // Přesná šířka fotografie bez paddingu, omezená maximální šířkou viewportu
-      Math.min(imgDimensions.width, windowSize.width * MAX_WIDTH_PERCENTAGE) + 'px' : 
-      '95vw';
-
-  const modalHeight = fullScreen ? '100%' : 
-    isSmall ? '95vh' : 
-    imgDimensions.height > 0 ? 
-      // Přesná výška fotografie bez paddingu, omezená maximální výškou viewportu
-      Math.min(imgDimensions.height, windowSize.height * MAX_HEIGHT_PERCENTAGE) + 'px' : 
-      '95vh';
+  const toggleFitMode = () => {
+    setFitMode(prev => prev === 'contain' ? 'cover' : 'contain');
+  };
 
   return (
     <Dialog
       open={open}
       onClose={onClose}
-      maxWidth={false}
+      maxWidth="xl"
       fullScreen={fullScreen}
       PaperProps={{
         sx: {
-          m: 0,
-          width: loading ? '95vw' : modalWidth,
-          height: loading ? '95vh' : modalHeight,
           bgcolor: 'black',
+          width: fullScreen ? '100%' : 'auto',
+          height: fullScreen ? '100%' : 'auto',
+          maxWidth: fullScreen ? '100%' : 'none',
+          maxHeight: fullScreen ? '100%' : 'none',
+          m: 0,
+          p: 0,
+          borderRadius: fullScreen ? 0 : 2,
           overflow: 'hidden',
-          borderRadius: { xs: 0, sm: 1 },
-          backgroundImage: 'none',
-          transition: 'width 0.3s, height 0.3s',
         }
       }}
     >
       <Box sx={photoContainerStyle}>
-        {/* Indikátor načítání */}
         {loading && (
           <Box sx={{ 
-            position: 'absolute',
-            top: 0,
-            left: 0,
-            right: 0,
-            bottom: 0,
-            display: 'flex',
-            alignItems: 'center',
+            display: 'flex', 
             justifyContent: 'center',
-            zIndex: 1
+            alignItems: 'center',
+            width: '100%',
+            height: '100%'
           }}>
-            <Box
-              sx={{
-                width: 40,
-                height: 40,
-                borderRadius: '50%',
-                border: `3px solid rgba(255, 255, 255, 0.2)`,
-                borderTop: `3px solid ${theme.palette.primary.main}`,
-                animation: 'spin 1s linear infinite',
-                '@keyframes spin': {
-                  '0%': { transform: 'rotate(0deg)' },
-                  '100%': { transform: 'rotate(360deg)' }
-                }
-              }}
-            />
+            <Typography color="white">Načítání...</Typography>
           </Box>
         )}
-
-        {/* Fotografie */}
+        
         <Box
           component="img"
           src={currentPhoto.imageUrl}
           alt={`Fotografie od ${currentPhoto.photographer}`}
-          sx={{
-            width: '100%',
-            height: '100%',
-            objectFit: fitMode,
-            objectPosition: 'center',
-            transition: 'object-fit 0.3s ease',
-            opacity: loading ? 0 : 1,
-          }}
           onLoad={handleImageLoad}
           onError={handleImageError}
+          sx={{
+            width: fullScreen ? '100%' : calculateImageSize().width,
+            height: fullScreen ? '100%' : calculateImageSize().height,
+            objectFit: fitMode,
+            visibility: loading ? 'hidden' : 'visible',
+            transition: 'all 0.3s ease',
+          }}
         />
-
-        {/* Horní panel s ovládacími prvky */}
-        <Box sx={{
-          ...headerStyle,
-          py: 1,
-          px: 2,
-        }}>
-          {/* Levá strana */}
-          <Box sx={{ display: 'flex', gap: 1 }}>
-            {/* Box pro lajkování a přepínání režimu zobrazení v jednom tmavém boxu */}
-            <Box sx={likeBoxStyle}>
-              {/* Lajkování */}
-              <Tooltip title={liked ? 'Odebrat lajk' : 'Přidat lajk'}>
-                <IconButton
-                  onClick={handleLikeClick}
-                  disabled={likeInProgress || (!onLike && !onUnlike)}
-                  aria-label={liked ? 'Odebrat lajk' : 'Přidat lajk'}
-                  sx={{ 
-                    ...actionButtonStyle,
-                    bgcolor: 'transparent',
-                    '&:hover': { bgcolor: 'rgba(0, 0, 0, 0.3)' } 
-                  }}
-                  size="small"
-                >
-                  <Box component="span" sx={{ fontSize: '1.2rem' }}>
-                    {liked ? <FavoriteIcon /> : <FavoriteBorderIcon />}
-                  </Box>
-                </IconButton>
-              </Tooltip>
-              <Typography sx={{ fontWeight: 'bold', color: 'white', mr: 1 }}>
+        
+        {/* Kontrolní panel v horní části */}
+        <Box sx={headerStyle}>
+          {/* Levá strana - lajky a ovládací prvky */}
+          <Box sx={{
+            display: 'flex',
+            p: 2,
+            gap: 1
+          }}>
+            {/* Lajky */}
+            <Box 
+              sx={{
+                ...likeBoxStyle,
+                color: liked ? 'primary.main' : 'white',
+              }}
+              onClick={handleLikeClick}
+            >
+              {liked ? (
+                <FavoriteIcon sx={{ fontSize: 20, color: '#ff6b81' }} />
+              ) : (
+                <FavoriteBorderIcon sx={{ fontSize: 20 }} />
+              )}
+              <Typography variant="body2">
                 {likeCount}
               </Typography>
-              
-              {/* Tlačítko pro přepínání režimu zobrazení */}
+            </Box>
+            
+            {/* Tlačítko pro změnu režimu zobrazení */}
+            <Box sx={controlBoxStyle}>
               <IconButton
                 onClick={toggleFitMode}
-                aria-label={fitMode === 'contain' ? 'zvětšit na celou plochu' : 'zobrazit celou fotku'}
-                sx={{ 
-                  ...actionButtonStyle,
-                  bgcolor: 'transparent',
-                  '&:hover': { bgcolor: 'rgba(0, 0, 0, 0.3)' } 
-                }}
+                aria-label="změnit režim zobrazení"
+                sx={actionButtonStyle}
                 size="small"
               >
                 <Box component="span" sx={{ fontSize: '1.2rem' }}>
@@ -456,103 +445,13 @@ export const PhotoDetailModal: React.FC<PhotoDetailModalProps> = ({
           </Box>
         )}
 
-        {/* Info panel překrývající spodní část fotografie */}
-        <Box sx={footerStyle}>
-          <Box sx={{ 
-            display: 'flex', 
-            alignItems: 'center', 
-            flexWrap: 'wrap',
-            gap: { xs: 1, sm: 2 },
-            justifyContent: 'space-between'
-          }}>
-            {/* Levá strana - fotograf a event */}
-            <Box sx={{
-              display: 'flex',
-              alignItems: 'center',
-              gap: { xs: 1, sm: 2 },
-              flexWrap: 'wrap'
-            }}>
-              {/* Fotograf */}
-              <Box sx={{ 
-                display: 'flex', 
-                alignItems: 'center',
-                gap: 1
-              }}>
-                <Avatar 
-                  src={currentPhoto.avatarUrl}
-                  sx={{ 
-                    width: SMALL_AVATAR_SIZE, 
-                    height: SMALL_AVATAR_SIZE,
-                    bgcolor: 'primary.main'
-                  }}
-                >
-                  {currentPhoto.photographer.charAt(0)}
-                </Avatar>
-                <Typography variant="body2" fontWeight="medium" sx={{ color: 'white' }}>
-                  {currentPhoto.photographer}
-                </Typography>
-              </Box>
-              
-              {currentPhoto.event && (
-                <>
-                  <Box sx={dotSeparatorStyle} />
-                  
-                  {/* Akce */}
-                  <Typography variant="body2" sx={{ color: 'white' }}>
-                    {currentPhoto.event}
-                  </Typography>
-                </>
-              )}
-
-              {/* Tagy */}
-              {currentPhoto.tags && currentPhoto.tags.length > 0 && (
-                <>
-                  {/* Oddělovač před tagy pro větší obrazovky */}
-                  <Box 
-                    sx={{ 
-                      ...dotSeparatorStyle,
-                      display: { xs: 'none', sm: 'block' }
-                    }} 
-                  />
-
-                  {/* Tagy pro větší obrazovky */}
-                  <Stack 
-                    direction="row" 
-                    spacing={0.5} 
-                    sx={{ 
-                      flexWrap: 'wrap',
-                      gap: 0.5,
-                      display: { xs: 'none', sm: 'flex' }
-                    }}
-                  >
-                    {currentPhoto.tags?.slice(0, fullScreen ? 3 : 6).map((tag: string) => (
-                      <Chip
-                        key={tag}
-                        label={tag}
-                        size="small"
-                        sx={tagChipStyle}
-                      />
-                    ))}
-                  </Stack>
-                </>
-              )}
-            </Box>
-
-            {/* Pravá strana - tlačítko pro stažení fotografie */}
-            <Box sx={controlBoxStyle}>
-              <IconButton
-                onClick={handleDownload}
-                aria-label="stáhnout fotografii"
-                sx={actionButtonStyle}
-                size="small"
-              >
-                <Box component="span" sx={{ fontSize: '1.2rem' }}>
-                  ↓
-                </Box>
-              </IconButton>
-            </Box>
-          </Box>
-        </Box>
+        {/* Použití komponenty PhotoFooter */}
+        <PhotoFooter 
+          photo={currentPhoto}
+          onDownload={handleDownload}
+          maxTags={fullScreen ? 3 : 6}
+          fullScreen={fullScreen}
+        />
       </Box>
     </Dialog>
   );

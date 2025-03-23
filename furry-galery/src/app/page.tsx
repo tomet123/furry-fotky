@@ -1,57 +1,29 @@
 'use client';
-import { Container, Typography, Paper, Box, Button } from '@mui/material';
-import Link from 'next/link';
-import PhotoLibraryIcon from '@mui/icons-material/PhotoLibrary';
+import { Container, Typography, Box, Divider } from '@mui/material';
+import { HomeCarousel } from '@/components/foto/HomeCarousel';
 
 export default function Home() {
   return (
     <Container maxWidth="lg">
-      <Box sx={{ mb: 4, textAlign: 'center' }}>
-        <Typography variant="h3" component="h1" gutterBottom>
-          Vítejte na FurryFotky.cz
+      {/* Carousel s nejoblíbenějšími fotkami */}
+      <HomeCarousel />
+      
+      {/* Sekce s nadcházejícími akcemi */}
+      <Box sx={{ mb: 5, mt: 5 }}>
+        <Typography variant="h4" component="h2" gutterBottom>
+          Nadcházející akce
         </Typography>
-        <Typography variant="h6" sx={{ my: 2, color: 'text.secondary' }}>
-          Vaše oblíbená fotogalerie pro komunitu furry nadšenců
-        </Typography>
+        <Divider sx={{ mb: 2 }} />
+        {/* Obsah bude implementován později */}
       </Box>
       
-      <Paper
-        elevation={3}
-        sx={{
-          p: 4,
-          borderRadius: 2,
-          backgroundColor: 'background.paper',
-        }}
-      >
-        <Typography variant="body1">
-          Tento prostor bude brzy naplněn fotogalerií a dalšími funkcemi.
+      {/* Sekce s fotografy */}
+      <Box sx={{ mb: 5 }}>
+        <Typography variant="h4" component="h2" gutterBottom>
+          Naši fotografové
         </Typography>
-        <Typography variant="body1">
-          Připravujeme pro vás místo, kde můžete sdílet své nejlepší fotografie a spojit se s komunitou.
-        </Typography>
-      </Paper>
-
-      <Box sx={{ mt: 5, display: 'flex', flexDirection: 'column', alignItems: 'center' }}>
-        <Button
-          component={Link}
-          href="/fotogalerie"
-          variant="contained"
-          size="large"
-          startIcon={<PhotoLibraryIcon />}
-          sx={{ mb: 2 }}
-        >
-          Prohlédnout fotogalerii
-        </Button>
-        
-        <Button
-          component={Link}
-          href="/test-filters"
-          variant="outlined"
-          size="small"
-          sx={{ mt: 1 }}
-        >
-          Test filtrů a actions
-        </Button>
+        <Divider sx={{ mb: 2 }} />
+        {/* Obsah bude implementován později */}
       </Box>
     </Container>
   );
