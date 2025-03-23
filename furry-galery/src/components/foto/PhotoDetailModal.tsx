@@ -13,7 +13,8 @@ import {
   useTheme,
   Button,
   Tooltip,
-  Fade
+  Fade,
+  CircularProgress
 } from '@mui/material';
 import CloseIcon from '@mui/icons-material/Close';
 import FavoriteIcon from '@mui/icons-material/Favorite';
@@ -23,12 +24,13 @@ import NavigateNextIcon from '@mui/icons-material/NavigateNext';
 import NavigateBeforeIcon from '@mui/icons-material/NavigateBefore';
 import AspectRatioIcon from '@mui/icons-material/AspectRatio';
 import { Photo } from '@/app/actions/photos';
-import { getPhotoById } from '@/app/actions/photos';
+import { getPhotoById, getSecurePhotoUrl } from '@/app/actions/photos';
 import { PhotoFooter } from './PhotoFooter';
 import { formatDistanceToNow } from 'date-fns';
 import { cs } from 'date-fns/locale';
 import { keyframes } from '@mui/system';
 import styles from './PhotoDetailModal.module.css';
+import CanvasImage from './CanvasImage';
 
 // Animace srdce při lajkování
 const pulseAnimation = keyframes`
@@ -224,15 +226,25 @@ export const PhotoDetailModal: React.FC<PhotoDetailModalProps> = ({
   const [loading, setLoading] = useState(true);
   const [imgDimensions, setImgDimensions] = useState({ width: 0, height: 0 });
   const [isAnimating, setIsAnimating] = useState<boolean>(false);
+  const [currentPhoto, setCurrentPhoto] = useState<Photo | null>(photo);
+  const [isNavigating, setIsNavigating] = useState(false);
   const windowSize = useWindowSize();
   
-  // Při změně fotky aktualizujeme stav
+  // Při změně fotky aktualizujeme stav, ale nezavíráme modál
   useEffect(() => {
     if (photo) {
+      console.log('Aktualizuji foto v modálu:', photo.id);
+      setCurrentPhoto(photo);
       // Nastavíme na základě vlastnosti isLikedByCurrentUser z objektu Photo
       setLiked(photo.isLikedByCurrentUser || false);
       setLikeCount(photo.likes || 0);
-      setLoading(true);
+      
+      // Nastavíme krátké loading, ale neblokujeme zobrazení předchozí fotografie
+      const timer = setTimeout(() => {
+        setLoading(false);
+      }, 200);
+      
+      return () => clearTimeout(timer);
     }
   }, [photo]);
   
@@ -245,7 +257,45 @@ export const PhotoDetailModal: React.FC<PhotoDetailModalProps> = ({
     }
   }, [liked]);
 
-  const currentPhoto = photo;
+  // Nová metoda pro bezpečnější navigaci
+  const safeNavigate = useCallback((direction: 'next' | 'prev') => {
+    if (isNavigating) return; // Zabraňuje opakovaným kliknutím
+
+    setIsNavigating(true);
+    console.log(`Navigace ${direction} zahájena`);
+
+    if (direction === 'next' && onNext) {
+      onNext();
+    } else if (direction === 'prev' && onPrevious) {
+      onPrevious();
+    }
+
+    // Uvolníme zámek navigace po určité době
+    setTimeout(() => {
+      setIsNavigating(false);
+      console.log('Navigace odemčena');
+    }, 300);
+  }, [onNext, onPrevious, isNavigating]);
+
+  // Funkce pro obsluhu klávesnice
+  useEffect(() => {
+    const handleKeyDown = (e: KeyboardEvent) => {
+      if (!open) return;
+
+      if (e.key === 'ArrowLeft' && onPrevious) {
+        e.preventDefault();
+        safeNavigate('prev');
+      } else if (e.key === 'ArrowRight' && onNext) {
+        e.preventDefault();
+        safeNavigate('next');
+      } else if (e.key === 'Escape') {
+        onClose();
+      }
+    };
+
+    window.addEventListener('keydown', handleKeyDown);
+    return () => window.removeEventListener('keydown', handleKeyDown);
+  }, [open, safeNavigate, onClose, onNext, onPrevious]);
 
   if (!currentPhoto) {
     return null;
@@ -283,10 +333,19 @@ export const PhotoDetailModal: React.FC<PhotoDetailModalProps> = ({
   };
 
   const handleDownload = () => {
-    const downloadLink = document.createElement('a');
-    downloadLink.href = currentPhoto.imageUrl;
-    downloadLink.download = `photo-${currentPhoto.id}`;
-    downloadLink.click();
+    // Použijeme metodu pro stažení z CanvasImage komponenty
+    // Tato metoda je interní pro komponentu, takže musíme použít její vlastní
+    // implementaci pro bezpečné stažení s vodoznakem
+    const canvasImage = document.querySelector('canvas');
+    if (canvasImage) {
+      // Vytvoříme vlastní událost stažení
+      const downloadEvent = new CustomEvent('canvas-download', {
+        detail: { photoId: currentPhoto.id }
+      });
+      canvasImage.dispatchEvent(downloadEvent);
+    } else {
+      console.error('Canvas element nebyl nalezen pro stažení fotografie');
+    }
   };
 
   const calculateImageSize = () => {
@@ -371,21 +430,32 @@ export const PhotoDetailModal: React.FC<PhotoDetailModalProps> = ({
       <Box className={styles.photoContainer} sx={{ position: 'relative' }}>
         {(loading || isLoading) && (
           <Box className={styles.loadingContainer}>
-            <Typography color="white">Načítání...</Typography>
+            <CircularProgress color="primary" size={40} />
           </Box>
         )}
       
-        <Box
-          component="img"
-          src={currentPhoto.imageUrl}
+        <CanvasImage
+          photoId={currentPhoto.id}
           alt={`Fotografie od ${currentPhoto.photographer}`}
-          onLoad={handleImageLoad}
+          objectFit={fitMode}
+          onLoad={() => {
+            console.log('CanvasImage načtena pro foto:', currentPhoto.id);
+            setLoading(false);
+            if (imgDimensions.width === 0) {
+              // Pokud nemáme rozměry, použijeme přímo z currentPhoto nebo defaultní hodnoty
+              setImgDimensions({
+                width: 1200, // Defaultní hodnota, pokud není k dispozici
+                height: 800  // Defaultní hodnota, pokud není k dispozici
+              });
+            }
+          }}
           onError={handleImageError}
-          sx={{
-            width: fullScreen ? '100%' : calculateImageSize().width,
-            height: fullScreen ? '100%' : calculateImageSize().height,
-            objectFit: fitMode,
-            visibility: (loading || isLoading) ? 'hidden' : 'visible',
+          width={fullScreen ? '100%' : calculateImageSize().width}
+          height={fullScreen ? '100%' : calculateImageSize().height}
+          style={{
+            visibility: 'visible', // Vždy viditelné, aby se zabránilo blikání
+            opacity: loading || isLoading ? 0.3 : 1, // Nastavíme průhlednost místo skrytí
+            transition: 'opacity 0.2s ease-in-out', // Plynulý přechod
           }}
         />
         
@@ -485,7 +555,11 @@ export const PhotoDetailModal: React.FC<PhotoDetailModalProps> = ({
             left: 0,
           }}>
             <IconButton
-              onClick={onPrevious}
+              onClick={(e) => {
+                e.stopPropagation();
+                safeNavigate('prev');
+              }}
+              disabled={isNavigating}
               aria-label="předchozí fotografie"
               className={styles.navButton}
             >
@@ -509,7 +583,11 @@ export const PhotoDetailModal: React.FC<PhotoDetailModalProps> = ({
             right: 0,
           }}>
             <IconButton
-              onClick={onNext}
+              onClick={(e) => {
+                e.stopPropagation();
+                safeNavigate('next');
+              }}
+              disabled={isNavigating}
               aria-label="další fotografie"
               className={styles.navButton}
             >

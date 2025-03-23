@@ -8,6 +8,7 @@ import { Photo, likePhoto, unlikePhoto } from '@/app/actions/photos';
 import { useRouter, usePathname, useSearchParams } from 'next/navigation';
 import { useSession } from 'next-auth/react';
 import { keyframes } from '@mui/system';
+import CanvasImage from './CanvasImage';
 
 // Animace srdce při lajkování
 const pulseAnimation = keyframes`
@@ -67,11 +68,7 @@ export const PhotoCard: React.FC<PhotoCardProps> = ({ photo, onClick }) => {
     if (onClick) {
       onClick(photo);
       
-      // Aktualizujeme URL s ID fotky
-      const newParams = new URLSearchParams(searchParams.toString());
-      newParams.set('photoId', photo.id);
-      router.replace(`${pathname}?${newParams.toString()}`, { scroll: false });
-    }
+       }
   };
 
   const handleLikeClick = useCallback(async (e: React.MouseEvent) => {
@@ -114,15 +111,21 @@ export const PhotoCard: React.FC<PhotoCardProps> = ({ photo, onClick }) => {
       onClick={handleCardClick} 
       sx={cardStyle}
     >
-      <CardMedia
-        component="img"
-        image={photo.thumbnailUrl}
-        alt={`Fotografie od ${photo.photographer}`}
+      <Box
         sx={{ 
           aspectRatio: '4/3',
-          objectFit: 'cover'
+          overflow: 'hidden'
         }}
-      />
+      >
+        <CanvasImage
+          photoId={photo.id}
+          isThumbnail={true}
+          alt={`Fotografie od ${photo.photographer}`}
+          width="100%"
+          height="100%"
+          objectFit="cover"
+        />
+      </Box>
       
       <CardContent sx={{ pt: 1.5, pb: 1.5, flexGrow: 1, display: 'flex', flexDirection: 'column' }}>
         <Box sx={{ 

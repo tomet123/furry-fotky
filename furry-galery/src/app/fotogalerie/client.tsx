@@ -305,24 +305,26 @@ function GalleryContent() {
   const prefetchAdjacentPhotos = useCallback((currentIndex: number) => {
     if (photos.length <= 1 || currentIndex === -1) return;
     
-    // Funkce pro vytvoření prefetch image elementu
-    const prefetchImage = (photoUrl: string) => {
-      const link = document.createElement('link');
-      link.rel = 'prefetch';
-      link.as = 'image';
-      link.href = photoUrl;
-      document.head.appendChild(link);
+    // Poznámka: Přednačítání pomocí URL je nyní zastaralé, protože používáme server actions
+    // Tato funkce byla ponechána pro budoucí implementaci přednačtení pomocí server actions
+    
+    // Funkce pro kešování dat fotografie - prozatím deaktivováno
+    const prefetchImage = (photoId: string) => {
+      if (!photoId) return;
+      
+      // Zde bychom mohli implementovat prefetching pomocí server actions v budoucnu
+      console.log('Přednačítám fotografii s ID:', photoId);
     };
     
     // Předchozí fotka
     const prevIndex = (currentIndex - 1 + photos.length) % photos.length;
     const prevPhoto = photos[prevIndex];
-    if (prevPhoto) prefetchImage(prevPhoto.imageUrl);
+    if (prevPhoto && prevPhoto.id) prefetchImage(prevPhoto.id);
     
     // Následující fotka
     const nextIndex = (currentIndex + 1) % photos.length;
     const nextPhoto = photos[nextIndex];
-    if (nextPhoto) prefetchImage(nextPhoto.imageUrl);
+    if (nextPhoto && nextPhoto.id) prefetchImage(nextPhoto.id);
   }, [photos]);
   
   // Přednačtení fotek při změně aktivní fotky
@@ -336,6 +338,7 @@ function GalleryContent() {
   const handlePrevious = useCallback(() => {
     if (photos.length > 1 && activePhotoIndex !== -1) {
       const newIndex = (activePhotoIndex - 1 + photos.length) % photos.length;
+      console.log('Navigace na předchozí, aktuální index:', activePhotoIndex, 'nový index:', newIndex);
       setActivePhoto(photos[newIndex]);
     }
   }, [photos, activePhotoIndex]);
@@ -344,6 +347,7 @@ function GalleryContent() {
   const handleNext = useCallback(() => {
     if (photos.length > 1 && activePhotoIndex !== -1) {
       const newIndex = (activePhotoIndex + 1) % photos.length;
+      console.log('Navigace na další, aktuální index:', activePhotoIndex, 'nový index:', newIndex);
       setActivePhoto(photos[newIndex]);
     }
   }, [photos, activePhotoIndex]);

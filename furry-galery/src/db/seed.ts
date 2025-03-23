@@ -320,10 +320,10 @@ async function seedDatabase() {
     
     // Stáhneme a uložíme skutečné fotografie z Picsum Photos
     console.log('📦 Stahuji a ukládám fotografie...');
-    const PHOTO_WIDTH = 800;
-    const PHOTO_HEIGHT = 600;
-    const THUMBNAIL_WIDTH = 400;
-    const THUMBNAIL_HEIGHT = 300;
+    const PHOTO_WIDTH = 1920;
+    const PHOTO_HEIGHT = 1080;
+    const THUMBNAIL_WIDTH = 1920/4;
+    const THUMBNAIL_HEIGHT = 1080/4;
     const createdStorages = [];
     
     // Stáhneme pouze 5 skutečných fotografií pro efektivitu

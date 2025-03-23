@@ -1,10 +1,11 @@
 'use client';
 
 import { useState, useEffect, useCallback } from 'react';
-import { Box, Typography, Paper, Avatar, Stack, Chip, IconButton, Tooltip } from '@mui/material';
+import { Box, Typography, Paper, Avatar, Stack, Chip, IconButton, Tooltip, CircularProgress } from '@mui/material';
 import { getPhotos, Photo, likePhoto, unlikePhoto } from '@/app/actions/photos';
 import { PhotoDetailModal } from './PhotoDetailModal';
 import { PhotoFooter } from './PhotoFooter';
+import CanvasImage from './CanvasImage';
 
 // Interval automatického posunu carousel (ms)
 const PHOTO_CAROUSEL_AUTOPLAY_INTERVAL = 5000;
@@ -169,10 +170,18 @@ export const HomeCarousel = ({
   // Handler pro stažení fotky
   const handleDownload = useCallback((photo: Photo, e: React.MouseEvent) => {
     e.stopPropagation(); // Zastavíme propagaci události, aby se neotevřel modál
-    const downloadLink = document.createElement('a');
-    downloadLink.href = photo.imageUrl;
-    downloadLink.download = `photo-${photo.id}`;
-    downloadLink.click();
+    
+    // Použijeme canvas pro stažení s vodoznakem, stejně jako v ostatních komponentách
+    const canvasImage = document.querySelector('canvas');
+    if (canvasImage) {
+      // Vytvoříme vlastní událost stažení
+      const downloadEvent = new CustomEvent('canvas-download', {
+        detail: { photoId: photo.id }
+      });
+      canvasImage.dispatchEvent(downloadEvent);
+    } else {
+      console.error('Canvas element nebyl nalezen pro stažení fotografie');
+    }
   }, []);
   
   // Zobrazení chybové hlášky, pokud nastala chyba
@@ -191,7 +200,19 @@ export const HomeCarousel = ({
   
   if (!currentPhoto || loading) {
     return (
-      <Box sx={{ height: 500, width: '100%', bgcolor: 'black', position: 'relative' }} />
+      <Box 
+        sx={{ 
+          height: 500, 
+          width: '100%', 
+          bgcolor: 'black', 
+          position: 'relative',
+          display: 'flex',
+          justifyContent: 'center',
+          alignItems: 'center'
+        }}
+      >
+        <CircularProgress color="primary" size={50} />
+      </Box>
     );
   }
   
@@ -264,15 +285,13 @@ export const HomeCarousel = ({
               overflow: 'hidden'
             }}>
               {/* Samotná fotografie */}
-              <Box
-                component="img"
-                src={currentPhoto.imageUrl}
+              <CanvasImage
+                photoId={currentPhoto.id}
                 alt={`Fotografie od ${currentPhoto.photographer}`}
-                sx={{
-                  width: '100%',
-                  height: '100%',
-                  objectFit: 'cover',
-                  objectPosition: 'center',
+                width="100%"
+                height="100%"
+                objectFit="cover"
+                style={{
                   transition: 'transform 0.5s ease',
                 }}
               />

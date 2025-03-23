@@ -1,6 +1,8 @@
 'use client';
 
+import React from 'react';
 import { Box, Typography, Avatar, Stack, Chip, IconButton, Tooltip } from '@mui/material';
+import CloudDownloadIcon from '@mui/icons-material/CloudDownload';
 import { Photo } from '@/app/actions/photos';
 import styles from './PhotoFooter.module.css';
 
@@ -66,7 +68,7 @@ const footerStyle = {
 
 export interface PhotoFooterProps {
   photo: Photo;
-  onDownload?: (photo: Photo, e: React.MouseEvent) => void;
+  onDownload?: (photo: Photo, event: React.MouseEvent) => void;
   maxTags?: number;
   fullScreen?: boolean;
 }
@@ -84,10 +86,17 @@ export const PhotoFooter = ({
       onDownload(photo, e);
     } else {
       // Výchozí implementace stahování
-      const downloadLink = document.createElement('a');
-      downloadLink.href = photo.imageUrl;
-      downloadLink.download = `photo-${photo.id}`;
-      downloadLink.click();
+      // Použijeme stejnou logiku jako v PhotoDetailModal - využíváme canvas pro stahování
+      const canvasImage = document.querySelector('canvas');
+      if (canvasImage) {
+        // Vytvoříme vlastní událost stažení
+        const downloadEvent = new CustomEvent('canvas-download', {
+          detail: { photoId: photo.id }
+        });
+        canvasImage.dispatchEvent(downloadEvent);
+      } else {
+        console.error('Canvas element nebyl nalezen pro stažení fotografie');
+      }
     }
   };
   

@@ -17,8 +17,8 @@ export type Photo = {
   eventId?: string;
   event?: string;
   storageId: string;
-  thumbnailUrl: string;
-  imageUrl: string;
+  thumbnailUrl?: string;
+  imageUrl?: string;
   likes: number;
   date: string;
   tags: string[];
@@ -314,8 +314,6 @@ export async function getPhotos({
         eventId: photo.eventId || undefined,
         event: event?.name || undefined,
         storageId: photo.storageId,
-        thumbnailUrl: `/api/photos/thumbnails/${photo.storageId}`,
-        imageUrl: `/api/photos/${photo.id}`,
         likes: photo.likes,
         date: photo.date,
         tags: photoTagsMap[photo.id] || [],
@@ -360,7 +358,7 @@ export async function getPhotos({
 /**
  * Získá detail fotografie podle ID
  */
-export async function getPhotoById(photoId: string, userId?: string) {
+export async function getPhotoById(id: string, userId?: string): Promise<Photo | null> {
   try {
     // Základní dotaz pro získání fotografie
     const [photoResult] = await db
@@ -373,7 +371,7 @@ export async function getPhotoById(photoId: string, userId?: string) {
         date: photos.date,
       })
       .from(photos)
-      .where(eq(photos.id, photoId));
+      .where(eq(photos.id, id));
     
     if (!photoResult) {
       throw new Error('Fotografie nebyla nalezena');
@@ -428,7 +426,7 @@ export async function getPhotoById(photoId: string, userId?: string) {
         tagId: photoTags.tagId,
       })
       .from(photoTags)
-      .where(eq(photoTags.photoId, photoId));
+      .where(eq(photoTags.photoId, id));
     
     const tagIds = photoTagsResult.map(pt => pt.tagId);
     
@@ -454,7 +452,7 @@ export async function getPhotoById(photoId: string, userId?: string) {
         .from(photoLikes)
         .where(
           and(
-            eq(photoLikes.photoId, photoId),
+            eq(photoLikes.photoId, id),
             eq(photoLikes.userId, userId)
           )
         );
@@ -462,8 +460,8 @@ export async function getPhotoById(photoId: string, userId?: string) {
       isLikedByCurrentUser = !!userLike;
     }
     
-    // Sestavení výsledku
-    return {
+    // Mapování výsledku na náš typ Photo
+    const result: Photo = {
       id: photoResult.id,
       photographerId: photoResult.photographerId,
       photographer: photographerName,
@@ -471,13 +469,13 @@ export async function getPhotoById(photoId: string, userId?: string) {
       eventId: photoResult.eventId || undefined,
       event: eventName || undefined,
       storageId: photoResult.storageId,
-      thumbnailUrl: `/api/photos/thumbnails/${photoResult.storageId}`,
-      imageUrl: `/api/photos/${photoResult.id}`,
       likes: photoResult.likes,
       date: photoResult.date,
       tags: photoTagsList,
       isLikedByCurrentUser
     };
+    
+    return result;
   } catch (error) {
     console.error('Chyba při načítání detailu fotografie:', error);
     throw new Error('Nepodařilo se načíst detail fotografie');
@@ -575,5 +573,134 @@ export async function unlikePhoto(photoId: string, userId: string) {
   } catch (error) {
     console.error('Chyba při odebírání lajku z fotografie:', error);
     throw new Error('Nepodařilo se odebrat lajk z fotografie');
+  }
+}
+
+/**
+ * Bezpečně vrátí URL obrázku pro použití v CanvasImage komponentě
+ * 
+ * @param photoId ID fotografie, kterou chceme načíst
+ * @returns URL obrázku nebo null, pokud fotografie neexistuje
+ */
+export async function getSecurePhotoUrl(photoId: string): Promise<string | null> {
+  try {
+    // Získáme data o fotografii
+    const photoData = await db
+      .select({
+        storageId: photos.storageId,
+      })
+      .from(photos)
+      .where(eq(photos.id, photoId))
+      .limit(1);
+
+    if (!photoData || photoData.length === 0) {
+      return null;
+    }
+
+    // Vracíme URL na stahovací endpoint, který jediný zachováme
+    const downloadUrl = `/api/photos/download/${photoId}`;
+    
+    return downloadUrl;
+  } catch (error) {
+    console.error('Chyba při načítání bezpečné URL fotografie:', error);
+    return null;
+  }
+}
+
+/**
+ * Získá binární data fotografie pro zobrazení v CanvasImage komponentě
+ * 
+ * @param photoId ID fotografie
+ * @returns Binární data fotografie v base64 formátu a content type
+ */
+export async function getPhotoData(photoId: string): Promise<{ data: string; contentType: string } | null> {
+  try {
+    // Získáme ID úložiště pro fotografii
+    const [photo] = await db
+      .select({ 
+        storageId: photos.storageId 
+      })
+      .from(photos)
+      .where(eq(photos.id, photoId))
+      .limit(1);
+    
+    if (!photo) {
+      return null;
+    }
+    
+    // Načteme data fotografie z úložiště
+    const [storagePhoto] = await db
+      .select({
+        fileData: storagePhotos.fileData,
+        contentType: storagePhotos.contentType
+      })
+      .from(storagePhotos)
+      .where(eq(storagePhotos.id, photo.storageId))
+      .limit(1);
+    
+    if (!storagePhoto || !storagePhoto.fileData) {
+      return null;
+    }
+    
+    // Konvertujeme data na base64 řetězec
+    const buffer = storagePhoto.fileData as Buffer;
+    const base64Data = buffer.toString('base64');
+    
+    return {
+      data: `data:${storagePhoto.contentType};base64,${base64Data}`,
+      contentType: storagePhoto.contentType
+    };
+  } catch (error) {
+    console.error('Chyba při načítání dat fotografie:', error);
+    return null;
+  }
+}
+
+/**
+ * Získá binární data miniatury fotografie pro zobrazení v CanvasImage komponentě
+ * 
+ * @param photoId ID fotografie
+ * @returns Binární data miniatury v base64 formátu a content type
+ */
+export async function getPhotoThumbnailData(photoId: string): Promise<{ data: string; contentType: string } | null> {
+  try {
+    // Získáme ID úložiště pro fotografii
+    const [photo] = await db
+      .select({ 
+        storageId: photos.storageId 
+      })
+      .from(photos)
+      .where(eq(photos.id, photoId))
+      .limit(1);
+    
+    if (!photo) {
+      return null;
+    }
+    
+    // Načteme data miniatury z úložiště
+    const [storagePhoto] = await db
+      .select({
+        thumbnailData: storagePhotos.thumbnailData,
+        contentType: storagePhotos.contentType
+      })
+      .from(storagePhotos)
+      .where(eq(storagePhotos.id, photo.storageId))
+      .limit(1);
+    
+    if (!storagePhoto || !storagePhoto.thumbnailData) {
+      return null;
+    }
+    
+    // Konvertujeme data na base64 řetězec
+    const buffer = storagePhoto.thumbnailData as Buffer;
+    const base64Data = buffer.toString('base64');
+    
+    return {
+      data: `data:${storagePhoto.contentType};base64,${base64Data}`,
+      contentType: storagePhoto.contentType
+    };
+  } catch (error) {
+    console.error('Chyba při načítání dat miniatury fotografie:', error);
+    return null;
   }
 } 
