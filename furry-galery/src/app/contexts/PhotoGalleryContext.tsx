@@ -1,6 +1,6 @@
 'use client';
 
-import React, { createContext, useContext, useState, useCallback, useEffect } from 'react';
+import React, { createContext, useContext, useState, useCallback, useEffect, useMemo } from 'react';
 import { Photo, PhotoFilters } from '@/app/actions/photos';
 import { getPhotos } from '@/app/actions/photos';
 import { getPhotographers, getEvents, getTags } from '@/app/actions/filters';
@@ -83,15 +83,23 @@ export function PhotoGalleryProvider({ children }: { children: React.ReactNode }
   const [events, setEvents] = useState<string[]>([]);
   const [availableTags, setAvailableTags] = useState<string[]>([]);
   const [loadingFilterOptions, setLoadingFilterOptions] = useState<boolean>(false);
+  
+  // Cache pro již načtené fotografie - zabránění zbytečným dotazům
+  const [photosCache, setPhotosCache] = useState<Record<string, {
+    photos: Photo[],
+    totalItems: number,
+    totalPages: number,
+    timestamp: number
+  }>>({});
 
-  // Funkce pro načtení fotografů s vyhledáváním
+  // Funkce pro načtení fotografů s vyhledáváním - optimalizovaná
   const searchPhotographers = useCallback(async (search: string = '') => {
     setLoadingFilterOptions(true);
     try {
       const data = await getPhotographers(search);
       setPhotographers(data);
     } catch (error) {
-      // Chyba zpracována tiše
+      console.error('Chyba při načítání fotografů:', error);
     } finally {
       setLoadingFilterOptions(false);
     }
@@ -148,12 +156,29 @@ export function PhotoGalleryProvider({ children }: { children: React.ReactNode }
     loadInitialFilterData();
   }, []);
 
-  // Funkce pro načtení fotografií podle aktuálních filtrů
+  // Optimalizovaná funkce pro načtení fotografií podle aktuálních filtrů
   const fetchPhotos = useCallback(async () => {
     setLoading(true);
     setError(null);
     
     try {
+      // Vytvoříme klíč pro cache na základě filtrů
+      const cacheKey = JSON.stringify(filters);
+      
+      // Zkontrolujeme, zda máme data v cache a zda nejsou starší než 5 minut
+      const currentTime = Date.now();
+      const cachedData = photosCache[cacheKey];
+      const cacheExpiration = 5 * 60 * 1000; // 5 minut
+      
+      if (cachedData && (currentTime - cachedData.timestamp) < cacheExpiration) {
+        // Použijeme data z cache
+        setPhotos(cachedData.photos);
+        setTotalItems(cachedData.totalItems);
+        setTotalPages(cachedData.totalPages);
+        setLoading(false);
+        return;
+      }
+      
       // Získáme ID aktuálního uživatele, pokud je potřeba pro filtrování oblíbených
       let currentFilters = { ...filters };
       
@@ -182,15 +207,28 @@ export function PhotoGalleryProvider({ children }: { children: React.ReactNode }
       
       const result = await getPhotos(currentFilters);
       
+      // Aktualizujeme UI
       setPhotos(result.photos);
       setTotalItems(result.totalItems);
       setTotalPages(result.totalPages);
+      
+      // Uložíme výsledek do cache
+      setPhotosCache(prev => ({
+        ...prev,
+        [cacheKey]: {
+          photos: result.photos,
+          totalItems: result.totalItems,
+          totalPages: result.totalPages,
+          timestamp: currentTime
+        }
+      }));
       
       // Zkontrolujeme, že stránka je v platném rozsahu
       if (filters.page && filters.page > result.totalPages && result.totalPages > 0) {
         setFilters(prev => ({ ...prev, page: result.totalPages }));
       }
     } catch (err) {
+      console.error('Chyba při načítání fotografií:', err);
       setError('Nepodařilo se načíst fotografie');
       setPhotos([]);
       setTotalItems(0);
@@ -198,7 +236,20 @@ export function PhotoGalleryProvider({ children }: { children: React.ReactNode }
     } finally {
       setLoading(false);
     }
-  }, [filters]);
+  }, [filters, photosCache]);
+
+  // Obnovení fotografií - exportovaná funkce pro ruční obnovení
+  const refreshPhotos = useCallback(async () => {
+    // Odstraníme klíč z cache, aby se data načetla znovu
+    const cacheKey = JSON.stringify(filters);
+    setPhotosCache(prev => {
+      const newCache = { ...prev };
+      delete newCache[cacheKey];
+      return newCache;
+    });
+    
+    await fetchPhotos();
+  }, [filters, fetchPhotos]);
 
   // Načtení fotografií při změně filtrů
   useEffect(() => {
@@ -235,8 +286,8 @@ export function PhotoGalleryProvider({ children }: { children: React.ReactNode }
     }));
   }, []);
 
-  // Poskytujeme hodnoty a funkce přes kontext
-  const contextValue = {
+  // Memoizace hodnot kontextu pro prevenci zbytečných překreslení
+  const contextValue = useMemo(() => ({
     photos,
     loading,
     error,
@@ -253,11 +304,16 @@ export function PhotoGalleryProvider({ children }: { children: React.ReactNode }
     updateFilters,
     resetFilters,
     setPage,
-    refreshPhotos: fetchPhotos,
+    refreshPhotos,
     searchPhotographers,
     searchEvents,
-    searchTags
-  };
+    searchTags,
+  }), [
+    photos, loading, error, totalItems, totalPages, currentPage, filters,
+    photographers, events, availableTags, loadingFilterOptions,
+    updateFilters, resetFilters, setPage, refreshPhotos,
+    searchPhotographers, searchEvents, searchTags
+  ]);
 
   return (
     <PhotoGalleryContext.Provider value={contextValue}>

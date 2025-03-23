@@ -290,9 +290,10 @@ export const HomeCarousel = ({
                 alt={`Fotografie od ${currentPhoto.photographer}`}
                 width="100%"
                 height="100%"
-                objectFit="cover"
+                objectFit="contain"
                 style={{
                   transition: 'transform 0.5s ease',
+                  backgroundColor: 'black',
                 }}
               />
               

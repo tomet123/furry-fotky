@@ -562,6 +562,13 @@ export const PhotoDetailModal: React.FC<PhotoDetailModalProps> = ({
               disabled={isNavigating}
               aria-label="předchozí fotografie"
               className={styles.navButton}
+              sx={{
+                visibility: 'visible', // Vždy viditelné
+                opacity: 0.8,
+                '&:hover': {
+                  opacity: 1,
+                }
+              }}
             >
               <Box component="span" sx={{ fontSize: '2rem' }}>
                 ‹
@@ -590,6 +597,13 @@ export const PhotoDetailModal: React.FC<PhotoDetailModalProps> = ({
               disabled={isNavigating}
               aria-label="další fotografie"
               className={styles.navButton}
+              sx={{
+                visibility: 'visible', // Vždy viditelné
+                opacity: 0.8,
+                '&:hover': {
+                  opacity: 1,
+                }
+              }}
             >
               <Box component="span" sx={{ fontSize: '2rem' }}>
                 ›

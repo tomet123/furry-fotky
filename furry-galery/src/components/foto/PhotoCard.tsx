@@ -1,6 +1,6 @@
 'use client';
 
-import React, { useState, useCallback, useEffect } from 'react';
+import React, { useState, useCallback, useEffect, memo } from 'react';
 import { Card, CardMedia, CardContent, Typography, Box, Avatar, Chip, Stack, IconButton } from '@mui/material';
 import FavoriteBorderIcon from '@mui/icons-material/FavoriteBorder';
 import FavoriteIcon from '@mui/icons-material/Favorite';
@@ -39,7 +39,8 @@ interface PhotoCardProps {
   userId?: string;  // Přidáno userId pro like/unlike operace
 }
 
-export const PhotoCard: React.FC<PhotoCardProps> = ({ photo, onClick }) => {
+// Použití memo pro optimalizaci vykreslování komponenty
+export const PhotoCard: React.FC<PhotoCardProps> = memo(({ photo, onClick }) => {
   const router = useRouter();
   const pathname = usePathname();
   const searchParams = useSearchParams();
@@ -49,11 +50,13 @@ export const PhotoCard: React.FC<PhotoCardProps> = ({ photo, onClick }) => {
   const [isLikeProcessing, setIsLikeProcessing] = useState<boolean>(false);
   const [isAnimating, setIsAnimating] = useState<boolean>(false);
 
-  // Aktualizovat stav při změně props
+  // Aktualizovat stav při změně props - optimalizováno
   useEffect(() => {
-    setIsLiked(photo.isLikedByCurrentUser || false);
-    setLikeCount(photo.likes || 0);
-  }, [photo.isLikedByCurrentUser, photo.likes]);
+    if (isLiked !== (photo.isLikedByCurrentUser || false) || likeCount !== (photo.likes || 0)) {
+      setIsLiked(photo.isLikedByCurrentUser || false);
+      setLikeCount(photo.likes || 0);
+    }
+  }, [photo.isLikedByCurrentUser, photo.likes, isLiked, likeCount]);
   
   // Animace, když se změní stav lajku
   useEffect(() => {
@@ -64,12 +67,11 @@ export const PhotoCard: React.FC<PhotoCardProps> = ({ photo, onClick }) => {
     }
   }, [isLiked]);
 
-  const handleCardClick = () => {
+  const handleCardClick = useCallback(() => {
     if (onClick) {
       onClick(photo);
-      
-       }
-  };
+    }
+  }, [onClick, photo]);
 
   const handleLikeClick = useCallback(async (e: React.MouseEvent) => {
     // Zastavit propagaci kliknutí, aby se neotevřel detail fotky
@@ -114,7 +116,8 @@ export const PhotoCard: React.FC<PhotoCardProps> = ({ photo, onClick }) => {
       <Box
         sx={{ 
           aspectRatio: '4/3',
-          overflow: 'hidden'
+          overflow: 'hidden',
+          backgroundColor: 'black' // Přidat černé pozadí pro obrázky s jiným poměrem stran
         }}
       >
         <CanvasImage
@@ -123,7 +126,7 @@ export const PhotoCard: React.FC<PhotoCardProps> = ({ photo, onClick }) => {
           alt={`Fotografie od ${photo.photographer}`}
           width="100%"
           height="100%"
-          objectFit="cover"
+          objectFit="contain" // Změněno z "cover" na "contain"
         />
       </Box>
       
@@ -231,4 +234,4 @@ export const PhotoCard: React.FC<PhotoCardProps> = ({ photo, onClick }) => {
       </CardContent>
     </Card>
   );
-}; 
+}); 

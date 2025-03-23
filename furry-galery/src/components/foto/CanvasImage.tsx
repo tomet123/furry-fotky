@@ -1,6 +1,6 @@
 'use client';
 
-import React, { useEffect, useRef, useState } from 'react';
+import React, { useEffect, useRef, useState, useCallback, memo } from 'react';
 import { Box, CircularProgress } from '@mui/material';
 import { getPhotoData, getPhotoThumbnailData } from '@/app/actions/photos';
 
@@ -18,7 +18,8 @@ interface CanvasImageProps {
   style?: React.CSSProperties;
 }
 
-export const CanvasImage: React.FC<CanvasImageProps> = ({
+// Použití memo pro optimalizaci vykreslování komponenty
+export const CanvasImage: React.FC<CanvasImageProps> = memo(({
   src,
   photoId,
   isThumbnail = false,
@@ -38,6 +39,7 @@ export const CanvasImage: React.FC<CanvasImageProps> = ({
   const [error, setError] = useState(false);
   const [imageSource, setImageSource] = useState<string | null>(src || null);
   const [lastPhotoId, setLastPhotoId] = useState<string | undefined>(photoId);
+  const imageRef = useRef<HTMLImageElement | null>(null);
 
   // Efekt pro sledování změn photoId
   useEffect(() => {
@@ -47,7 +49,6 @@ export const CanvasImage: React.FC<CanvasImageProps> = ({
       setError(false);
       setImageSource(src || null);
       setLastPhotoId(photoId);
-      console.log('PhotoId změněno, načítám nová data, ale zachovávám zobrazení:', photoId);
     }
   }, [photoId, lastPhotoId, src]);
 
@@ -55,7 +56,9 @@ export const CanvasImage: React.FC<CanvasImageProps> = ({
   useEffect(() => {
     if (!photoId || imageSource) return;
 
-    console.log('Načítám data pro photoId:', photoId);
+    const abortController = new AbortController();
+    const signal = abortController.signal;
+
     const fetchImageData = async () => {
       try {
         let result;
@@ -65,15 +68,16 @@ export const CanvasImage: React.FC<CanvasImageProps> = ({
           result = await getPhotoData(photoId);
         }
 
+        if (signal.aborted) return;
+
         if (result && result.data) {
-          console.log('Data načtena úspěšně pro photoId:', photoId);
           setImageSource(result.data);
         } else {
-          console.error('Žádná data pro photoId:', photoId);
           setError(true);
           if (onError) onError();
         }
       } catch (err) {
+        if (signal.aborted) return;
         console.error('Chyba při načítání dat fotografie:', err);
         setError(true);
         if (onError) onError();
@@ -81,76 +85,14 @@ export const CanvasImage: React.FC<CanvasImageProps> = ({
     };
 
     fetchImageData();
+
+    return () => {
+      abortController.abort();
+    };
   }, [photoId, isThumbnail, onError, imageSource]);
 
-  // Efekt pro načtení a vykreslení obrázku do canvasu
-  useEffect(() => {
-    if (!imageSource) return;
-
-    console.log('Vykreslování obrazu pro photoId:', photoId);
-    const img = new Image();
-    img.crossOrigin = 'anonymous'; // Umožní manipulaci s obrázkem v canvasu
-    
-    img.onload = () => {
-      console.log('Obrázek načten, nastavuji rozměry a renderuji:', photoId);
-      setIsLoaded(true);
-      setNaturalWidth(img.naturalWidth);
-      setNaturalHeight(img.naturalHeight);
-      renderImage(img);
-      if (onLoad) onLoad();
-    };
-    
-    img.onerror = () => {
-      console.error('Nepodařilo se načíst obrázek:', photoId);
-      setError(true);
-      if (onError) onError();
-    };
-    
-    img.src = imageSource;
-    
-    return () => {
-      img.onload = null;
-      img.onerror = null;
-    };
-  }, [imageSource, onLoad, onError, objectFit, photoId]);
-
-  // Efekt pro přizpůsobení velikosti canvasu při změně rozměrů
-  useEffect(() => {
-    if (isLoaded) {
-      const img = new Image();
-      img.crossOrigin = 'anonymous';
-      
-      img.onload = () => {
-        renderImage(img);
-      };
-      
-      img.src = imageSource || '';
-    }
-  }, [isLoaded, width, height, objectFit, imageSource]);
-
-  // Efekt pro přidání event listeneru pro stahování
-  useEffect(() => {
-    const canvas = canvasRef.current;
-    if (!canvas) return;
-
-    const handleDownloadEvent = (e: Event) => {
-      const customEvent = e as CustomEvent;
-      if (customEvent.detail && customEvent.detail.photoId) {
-        handleDownload();
-      }
-    };
-
-    // Přidáme posluchač na naši vlastní událost
-    canvas.addEventListener('canvas-download', handleDownloadEvent);
-
-    return () => {
-      // Cleanup při odmontování komponenty
-      canvas.removeEventListener('canvas-download', handleDownloadEvent);
-    };
-  }, [canvasRef.current, naturalWidth, naturalHeight, imageSource]);
-
-  // Funkce pro vykreslení obrázku do canvasu
-  const renderImage = (img: HTMLImageElement) => {
+  // Memoizovaná funkce pro vykreslení obrázku do canvasu
+  const renderImage = useCallback((img: HTMLImageElement) => {
     const canvas = canvasRef.current;
     if (!canvas) return;
     
@@ -199,73 +141,159 @@ export const CanvasImage: React.FC<CanvasImageProps> = ({
       
       ctx.drawImage(img, x, y, scaledWidth, scaledHeight);
     }
-  };
+  }, [objectFit]);
 
-  // Funkce pro vytvoření vodoznaku při stahování
-  const handleDownload = async () => {
-    if (!canvasRef.current) return;
-    
-    // Vytvoření dočasného canvasu pro verzi s vodoznakem
-    const tempCanvas = document.createElement('canvas');
-    tempCanvas.width = naturalWidth;
-    tempCanvas.height = naturalHeight;
-    
-    const ctx = tempCanvas.getContext('2d');
-    if (!ctx) return;
-    
-    // Načtení originálního obrázku
+  // Efekt pro načtení a vykreslení obrázku do canvasu
+  useEffect(() => {
+    if (!imageSource) return;
+
     const img = new Image();
-    img.crossOrigin = 'anonymous';
+    imageRef.current = img;
+    img.crossOrigin = 'anonymous'; // Umožní manipulaci s obrázkem v canvasu
     
     img.onload = () => {
-      // Vykreslení originálního obrázku
-      ctx.drawImage(img, 0, 0, naturalWidth, naturalHeight);
+      if (!canvasRef.current) return; // Kontrola, zda komponenta stále existuje
       
-      // Přidání vodoznaku
-      ctx.fillStyle = 'rgba(255, 255, 255, 0.5)';
-      ctx.font = '20px Arial';
-      ctx.fillText('Furry Fotky', 20, naturalHeight - 20);
-      
-      // Vytvoření plynoucího vodoznaku přes celý obrázek
-      ctx.font = '30px Arial';
-      ctx.fillStyle = 'rgba(255, 255, 255, 0.15)';
-      ctx.save();
-      ctx.translate(naturalWidth / 2, naturalHeight / 2);
-      ctx.rotate(-Math.PI / 4);
-      ctx.textAlign = 'center';
-      for (let i = -5; i <= 5; i++) {
-        ctx.fillText('Furry Fotky', 0, i * 80);
-      }
-      ctx.restore();
-      
-      // Konverze do speciálního formátu a stažení
-      try {
-        const dataUrl = tempCanvas.toDataURL('image/webp', 0.8);
-        const link = document.createElement('a');
-        const filename = 'furry-fotka-' + new Date().getTime() + '.webp';
-        
-        link.href = dataUrl;
-        link.download = filename;
-        link.click();
-      } catch (error) {
-        console.error('Chyba při stahování obrázku:', error);
-      }
+      setIsLoaded(true);
+      setNaturalWidth(img.naturalWidth);
+      setNaturalHeight(img.naturalHeight);
+      renderImage(img);
+      if (onLoad) onLoad();
     };
     
-    img.src = imageSource || '';
-  };
+    img.onerror = () => {
+      if (!canvasRef.current) return; // Kontrola, zda komponenta stále existuje
+      
+      setError(true);
+      if (onError) onError();
+    };
+    
+    img.src = imageSource;
+    
+    return () => {
+      img.onload = null;
+      img.onerror = null;
+      // Zastavit načítání obrázku při unmount
+      if (imageRef.current) {
+        imageRef.current.src = '';
+      }
+    };
+  }, [imageSource, onLoad, onError, renderImage]);
+
+  // Efekt pro přizpůsobení velikosti canvasu při změně rozměrů
+  useEffect(() => {
+    if (isLoaded && imageRef.current) {
+      renderImage(imageRef.current);
+    }
+  }, [isLoaded, width, height, renderImage]);
+
+  // Efekt pro přidání event listeneru pro stahování
+  useEffect(() => {
+    const canvas = canvasRef.current;
+    if (!canvas) return;
+
+    const handleDownloadEvent = (e: Event) => {
+      const customEvent = e as CustomEvent;
+      if (customEvent.detail && customEvent.detail.photoId) {
+        handleDownload();
+      }
+    };
+
+    // Přidáme posluchač na naši vlastní událost
+    canvas.addEventListener('canvas-download', handleDownloadEvent);
+
+    return () => {
+      // Cleanup při odmontování komponenty
+      canvas.removeEventListener('canvas-download', handleDownloadEvent);
+    };
+  }, []);
+
+  // Funkce pro vytvoření vodoznaku při stahování
+  const handleDownload = useCallback(async () => {
+    if (!canvasRef.current || !imageSource || naturalWidth === 0 || naturalHeight === 0) return;
+    
+    try {
+      // Vytvoření dočasného canvasu pro verzi s vodoznakem
+      const tempCanvas = document.createElement('canvas');
+      tempCanvas.width = naturalWidth;
+      tempCanvas.height = naturalHeight;
+      
+      const ctx = tempCanvas.getContext('2d');
+      if (!ctx) return;
+      
+      // Načtení originálního obrázku
+      const img = new Image();
+      img.crossOrigin = 'anonymous';
+      
+      // Vrácíme promise pro lepší zpracování asynchronních operací
+      return new Promise<void>((resolve, reject) => {
+        img.onload = () => {
+          try {
+            // Vykreslení originálního obrázku
+            ctx.drawImage(img, 0, 0, naturalWidth, naturalHeight);
+            
+            // Přidání vodoznaku
+            ctx.fillStyle = 'rgba(255, 255, 255, 0.5)';
+            ctx.font = '20px Arial';
+            ctx.fillText('Furry Fotky', 20, naturalHeight - 20);
+            
+            // Vytvoření plynoucího vodoznaku přes celý obrázek
+            ctx.font = '30px Arial';
+            ctx.fillStyle = 'rgba(255, 255, 255, 0.15)';
+            ctx.save();
+            ctx.translate(naturalWidth / 2, naturalHeight / 2);
+            ctx.rotate(-Math.PI / 4);
+            ctx.textAlign = 'center';
+            for (let i = -5; i <= 5; i++) {
+              ctx.fillText('Furry Fotky', 0, i * 80);
+            }
+            ctx.restore();
+            
+            // Konverze do speciálního formátu a stažení
+            const dataUrl = tempCanvas.toDataURL('image/webp', 0.8);
+            const link = document.createElement('a');
+            const filename = 'furry-fotka-' + new Date().getTime() + '.webp';
+            
+            link.href = dataUrl;
+            link.download = filename;
+            link.click();
+            
+            // Čištění paměti
+            setTimeout(() => {
+              URL.revokeObjectURL(dataUrl);
+              tempCanvas.remove();
+            }, 100);
+            
+            resolve();
+          } catch (error) {
+            console.error('Chyba při stahování obrázku:', error);
+            reject(error);
+          }
+        };
+        
+        img.onerror = (err) => {
+          console.error('Chyba při načítání obrázku pro stažení:', err);
+          reject(err);
+        };
+        
+        img.src = imageSource || '';
+      });
+    } catch (error) {
+      console.error('Chyba při stahování obrázku:', error);
+    }
+  }, [imageSource, naturalWidth, naturalHeight]);
 
   // Zakázání kontextového menu (pravé tlačítko myši)
-  const handleContextMenu = (e: React.MouseEvent) => {
+  const handleContextMenu = useCallback((e: React.MouseEvent) => {
     e.preventDefault();
     return false;
-  };
+  }, []);
 
   // Zakázání drag & drop
-  const handleDragStart = (e: React.DragEvent) => {
+  const handleDragStart = useCallback((e: React.DragEvent) => {
     e.preventDefault();
     return false;
-  };
+  }, []);
 
   return (
     <Box
@@ -274,6 +302,7 @@ export const CanvasImage: React.FC<CanvasImageProps> = ({
         width: width,
         height: height,
         overflow: 'hidden',
+        backgroundColor: 'black', // Zajistit černé pozadí pro obrázky s jiným poměrem stran
         ...style
       }}
       className={className}
@@ -292,33 +321,52 @@ export const CanvasImage: React.FC<CanvasImageProps> = ({
       {!isLoaded && !error && (
         <Box
           sx={{
-            width: '100%',
-            height: '100%',
+            position: 'absolute',
+            top: 0,
+            left: 0,
+            right: 0,
+            bottom: 0,
             display: 'flex',
             alignItems: 'center',
             justifyContent: 'center',
-            bgcolor: 'rgba(0, 0, 0, 0.1)'
+            backgroundColor: 'rgba(0, 0, 0, 0.1)'
           }}
         >
-          <CircularProgress color="primary" size={40} />
+          <CircularProgress size={24} color="primary" />
         </Box>
       )}
       {error && (
         <Box
           sx={{
-            width: '100%',
-            height: '100%',
+            position: 'absolute',
+            top: 0,
+            left: 0,
+            right: 0,
+            bottom: 0,
             display: 'flex',
             alignItems: 'center',
             justifyContent: 'center',
-            bgcolor: 'rgba(0, 0, 0, 0.1)'
+            bgcolor: 'rgba(0, 0, 0, 0.05)'
           }}
         >
-          Chyba načítání obrázku
+          <Box
+            component="div"
+            sx={{
+              color: 'grey.500',
+              fontSize: '0.75rem',
+              textAlign: 'center',
+              p: 2
+            }}
+          >
+            Nepodařilo se načíst obrázek
+          </Box>
         </Box>
       )}
     </Box>
   );
-};
+});
+
+// Nastavení displayName pro komponentu memo
+CanvasImage.displayName = 'CanvasImage';
 
 export default CanvasImage; 
