@@ -97,3 +97,53 @@ a {
 ::-webkit-scrollbar-thumb:hover {
   background: #555;
 }
+
+/* Mobilní optimalizace */
+@media (max-width: 600px) {
+  /* Menší mezery a padding pro lepší využití prostoru */
+  .MuiContainer-root {
+    padding-left: 12px !important;
+    padding-right: 12px !important;
+  }
+  
+  /* Zvětšení interakčních prvků pro dotykové ovládání */
+  .MuiButtonBase-root {
+    min-width: 44px;
+    min-height: 44px;
+  }
+  
+  /* Úprava mezery mezi řádky pro lepší čitelnost */
+  .MuiTypography-root {
+    line-height: 1.4;
+  }
+  
+  /* Dotykové optimalizace pro všechny klikatelné prvky */
+  a, button, [role="button"] {
+    touch-action: manipulation;
+  }
+  
+  /* Menší scrollbar pro mobilní zařízení */
+  ::-webkit-scrollbar {
+    width: 5px;
+  }
+}
+
+/* Dotykové optimalizace pro všechna zařízení */
+@media (hover: none) {
+  /* Zamezení hover efektů na dotykových zařízeních */
+  .MuiButtonBase-root:hover {
+    background-color: transparent;
+  }
+  
+  /* Aktivní stav poskytuje visuální feedback na dotyk */
+  .MuiButtonBase-root:active {
+    transform: scale(0.98);
+    transition: transform 0.1s;
+  }
+  
+  /* Optimalizace pro rychlejší odezvu */
+  * {
+    touch-action: manipulation;
+    -webkit-tap-highlight-color: transparent;
+  }
+}

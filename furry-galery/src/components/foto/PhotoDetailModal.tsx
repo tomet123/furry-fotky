@@ -31,6 +31,7 @@ import { cs } from 'date-fns/locale';
 import { keyframes } from '@mui/system';
 import styles from './PhotoDetailModal.module.css';
 import CanvasImage from './CanvasImage';
+import { useSession } from 'next-auth/react';
 
 // Animace srdce při lajkování
 const pulseAnimation = keyframes`
@@ -216,6 +217,7 @@ export const PhotoDetailModal: React.FC<PhotoDetailModalProps> = ({
   onUnlike,
   isLoading = false
 }) => {
+  const { data: session } = useSession();
   const theme = useTheme();
   const fullScreen = useMediaQuery(theme.breakpoints.down('md'));
   const isSmall = useMediaQuery(theme.breakpoints.down('sm'));
@@ -409,7 +411,7 @@ export const PhotoDetailModal: React.FC<PhotoDetailModalProps> = ({
           height: fullScreen ? '100%' : 'auto',
           maxWidth: fullScreen ? '100%' : 'none',
           maxHeight: fullScreen ? '100%' : 'none',
-          m: 0,
+          m: fullScreen ? 0 : 1, // Zmenšené okraje (z defaultních hodnot)
           p: 0,
           borderRadius: fullScreen ? 0 : 2,
           overflow: 'hidden',
@@ -417,17 +419,23 @@ export const PhotoDetailModal: React.FC<PhotoDetailModalProps> = ({
         }
       }}
     >
-      {/* Zavírací tlačítko v pravém horním rohu */}
       <IconButton
         onClick={onClose}
         aria-label="zavřít"
         className={styles.closeButton}
         size="medium"
+        sx={{ 
+          width: isSmall ? 48 : 40,
+          height: isSmall ? 48 : 40
+        }}
       >
         <CloseIcon />
       </IconButton>
       
-      <Box className={styles.photoContainer} sx={{ position: 'relative' }}>
+      <Box 
+        className={styles.photoContainer} 
+        sx={{ position: 'relative' }}
+      >
         {(loading || isLoading) && (
           <Box className={styles.loadingContainer}>
             <CircularProgress color="primary" size={40} />
@@ -466,42 +474,60 @@ export const PhotoDetailModal: React.FC<PhotoDetailModalProps> = ({
             display: 'flex',
             gap: 1
           }}>
-            {/* Lajky */}
-            <Box 
-              onClick={handleLikeClick}
-              sx={{
-                color: liked ? 'primary.main' : 'white',
-                display: 'flex', 
-                alignItems: 'center',
-                backgroundColor: 'rgba(0, 0, 0, 0.3)',
-                borderRadius: '8px',
-                padding: '4px 12px',
-                cursor: 'pointer',
-                '&:hover': {
-                  backgroundColor: 'rgba(0, 0, 0, 0.5)'
-                }
-              }}
-            >
-              <IconButton 
-                onClick={(e) => {
-                  e.stopPropagation();
-                  handleLikeClick();
-                }} 
-                disabled={likeInProgress}
-                sx={{ 
+            {/* Lajky - zobrazit pouze pokud je uživatel přihlášený */}
+            {session?.user ? (
+              <Box 
+                onClick={handleLikeClick}
+                sx={{
                   color: liked ? 'primary.main' : 'white',
-                  animation: isAnimating ? `${pulseAnimation} 0.5s ease-in-out` : 'none',
-                  transition: 'color 0.3s ease-in-out',
-                  padding: '4px'
+                  display: 'flex', 
+                  alignItems: 'center',
+                  backgroundColor: 'rgba(0, 0, 0, 0.3)',
+                  borderRadius: '8px',
+                  padding: '4px 12px',
+                  cursor: 'pointer',
+                  '&:hover': {
+                    backgroundColor: 'rgba(0, 0, 0, 0.5)'
+                  }
                 }}
-                size="small"
               >
-                {liked ? <FavoriteIcon /> : <FavoriteBorderIcon />}
-              </IconButton>
-              <Typography color="white" variant="body2" sx={{ ml: 0.5 }}>
-                {likeCount}
-              </Typography>
-            </Box>
+                <IconButton 
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    handleLikeClick();
+                  }} 
+                  disabled={likeInProgress}
+                  sx={{ 
+                    color: liked ? 'primary.main' : 'white',
+                    animation: isAnimating ? `${pulseAnimation} 0.5s ease-in-out` : 'none',
+                    transition: 'color 0.3s ease-in-out',
+                    padding: '4px'
+                  }}
+                  size="small"
+                >
+                  {liked ? <FavoriteIcon /> : <FavoriteBorderIcon />}
+                </IconButton>
+                <Typography color="white" variant="body2" sx={{ ml: 0.5 }}>
+                  {likeCount}
+                </Typography>
+              </Box>
+            ) : (
+              <Box 
+                sx={{
+                  color: 'white',
+                  display: 'flex', 
+                  alignItems: 'center',
+                  backgroundColor: 'rgba(0, 0, 0, 0.3)',
+                  borderRadius: '8px',
+                  padding: '4px 12px',
+                }}
+              >
+                <FavoriteBorderIcon fontSize="small" sx={{ color: 'white', mr: 0.5 }} />
+                <Typography color="white" variant="body2">
+                  {likeCount}
+                </Typography>
+              </Box>
+            )}
             
             {/* Tlačítko pro změnu režimu zobrazení */}
             <Box 

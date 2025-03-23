@@ -1,16 +1,23 @@
 'use client';
-import { AppBar, Toolbar, Typography, Button, Box, Container, Tabs, Tab, Avatar, Menu, MenuItem, IconButton, Stack } from '@mui/material';
+import { AppBar, Toolbar, Typography, Button, Box, Container, Tabs, Tab, Avatar, Menu, MenuItem, IconButton, Stack, Drawer, List, Divider, useTheme, useMediaQuery } from '@mui/material';
 import Link from 'next/link';
 import { usePathname } from 'next/navigation';
 import { useSession, signOut } from 'next-auth/react';
 import { useState } from 'react';
 import PersonIcon from '@mui/icons-material/Person';
+import MenuIcon from '@mui/icons-material/Menu';
+import PhotoLibraryIcon from '@mui/icons-material/PhotoLibrary';
+import EventIcon from '@mui/icons-material/Event';
+import PeopleIcon from '@mui/icons-material/People';
 
 export default function Header() {
   const pathname = usePathname();
   const { data: session, status } = useSession();
   const [anchorEl, setAnchorEl] = useState<null | HTMLElement>(null);
   const open = Boolean(anchorEl);
+  const theme = useTheme();
+  const isMobile = useMediaQuery(theme.breakpoints.down('sm'));
+  const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
 
   // Menu pro přihlášeného uživatele
   const handleClick = (event: React.MouseEvent<HTMLElement>) => {
@@ -26,6 +33,16 @@ export default function Header() {
     handleClose();
   };
 
+  // Otevření/zavření mobilního menu
+  const handleMobileMenuToggle = () => {
+    setMobileMenuOpen(!mobileMenuOpen);
+  };
+
+  // Zavření mobilního menu po výběru
+  const handleMenuItemClick = () => {
+    setMobileMenuOpen(false);
+  };
+
   // Zjištění aktivní záložky podle aktuální cesty
   const getTabValue = () => {
     if (pathname === '/fotogalerie' || pathname?.startsWith('/fotogalerie/')) return 0;
@@ -34,28 +51,124 @@ export default function Header() {
     return false;
   };
 
+  // Stylové konstanty pro mobilní menu
+  const menuItemStyle = {
+    display: 'flex',
+    alignItems: 'center',
+    py: 1.5,
+    px: 3,
+    color: 'text.primary',
+    textDecoration: 'none',
+    '&:hover': {
+      bgcolor: 'action.hover',
+    },
+  };
+
+  const activeMenuItemStyle = {
+    ...menuItemStyle,
+    bgcolor: 'action.selected',
+    color: 'primary.main',
+    '&:hover': {
+      bgcolor: 'action.selected',
+    },
+  };
+
+  const mobileMenu = (
+    <Drawer
+      anchor="left"
+      open={mobileMenuOpen}
+      onClose={handleMobileMenuToggle}
+      PaperProps={{
+        sx: {
+          width: 280,
+          bgcolor: 'background.paper',
+        },
+      }}
+    >
+      <Box sx={{ p: 2 }}>
+        <Typography variant="h6" fontWeight="bold" sx={{ mb: 2 }}>
+          FurryFotky.cz
+        </Typography>
+      </Box>
+      <Divider />
+      <Box component="nav" sx={{ mt: 2 }}>
+        <Link 
+          href="/fotogalerie" 
+          onClick={handleMenuItemClick}
+          style={{ textDecoration: 'none' }}
+        >
+          <Box 
+            sx={pathname === '/fotogalerie' || pathname?.startsWith('/fotogalerie/') ? activeMenuItemStyle : menuItemStyle}
+          >
+            <PhotoLibraryIcon sx={{ mr: 2 }} color={getTabValue() === 0 ? "primary" : "inherit"} />
+            <Typography>Fotografie</Typography>
+          </Box>
+        </Link>
+        
+        <Link 
+          href="/akce" 
+          onClick={handleMenuItemClick}
+          style={{ textDecoration: 'none' }}
+        >
+          <Box 
+            sx={pathname === '/akce' ? activeMenuItemStyle : menuItemStyle}
+          >
+            <EventIcon sx={{ mr: 2 }} color={getTabValue() === 1 ? "primary" : "inherit"} />
+            <Typography>Akce</Typography>
+          </Box>
+        </Link>
+        
+        <Link 
+          href="/uzivatele" 
+          onClick={handleMenuItemClick}
+          style={{ textDecoration: 'none' }}
+        >
+          <Box 
+            sx={pathname === '/uzivatele' ? activeMenuItemStyle : menuItemStyle}
+          >
+            <PeopleIcon sx={{ mr: 2 }} color={getTabValue() === 2 ? "primary" : "inherit"} />
+            <Typography>Uživatelé</Typography>
+          </Box>
+        </Link>
+      </Box>
+    </Drawer>
+  );
+
   return (
     <AppBar position="static" color="transparent" elevation={1}>
       <Container maxWidth="lg">
-        <Toolbar>
+        <Toolbar sx={{ justifyContent: 'space-between' }}>
+          {/* Mobilní hamburger menu */}
+          {isMobile && (
+            <IconButton 
+              edge="start" 
+              color="inherit" 
+              aria-label="menu"
+              onClick={handleMobileMenuToggle}
+              sx={{ mr: 1 }}
+            >
+              <MenuIcon />
+            </IconButton>
+          )}
+
           {/* Logo */}
           <Link href="/" style={{ textDecoration: 'none', color: 'inherit' }}>
             <Typography
               variant="h5"
               component="div"
               fontWeight="bold"
-              sx={{ mr: 4 }}
+              sx={{ display: 'flex', flexShrink: 0 }}
             >
               FurryFotky.cz
             </Typography>
           </Link>
 
-          {/* Hlavní navigace */}
+          {/* Hlavní navigace - zobrazena jen na větších obrazovkách */}
           <Tabs 
             value={getTabValue()} 
             textColor="inherit"
             indicatorColor="secondary"
-            sx={{ flexGrow: 1, display: { xs: 'none', sm: 'flex' } }}
+            sx={{ flexGrow: 1, display: { xs: 'none', sm: 'flex' }, mx: 2 }}
           >
             <Tab 
               label="Fotografie" 
@@ -74,8 +187,8 @@ export default function Header() {
             />
           </Tabs>
 
-          {/* Přihlášení/Odhlášení */}
-          <Box>
+          {/* Přihlášení/Odhlášení - optimalizováno pro všechny velikosti obrazovky */}
+          <Box sx={{ display: 'flex', alignItems: 'center' }}>
             {status === 'authenticated' && session?.user ? (
               <>
                 <Stack direction="row" spacing={1} alignItems="center">
@@ -122,23 +235,32 @@ export default function Header() {
               </>
             ) : (
               <>
-                <Button color="inherit" component={Link} href="/login">
-                  Přihlášení
-                </Button>
-                <Button
-                  variant="contained"
-                  color="secondary"
-                  component={Link}
-                  href="/register"
-                  sx={{ ml: 1 }}
-                >
-                  Registrace
-                </Button>
+                {isMobile ? (
+                  <Button variant="contained" color="secondary" component={Link} href="/login" size="small">
+                    Přihlásit
+                  </Button>
+                ) : (
+                  <>
+                    <Button color="inherit" component={Link} href="/login">
+                      Přihlášení
+                    </Button>
+                    <Button
+                      variant="contained"
+                      color="secondary"
+                      component={Link}
+                      href="/register"
+                      sx={{ ml: 1 }}
+                    >
+                      Registrace
+                    </Button>
+                  </>
+                )}
               </>
             )}
           </Box>
         </Toolbar>
       </Container>
+      {mobileMenu}
     </AppBar>
   );
 } 

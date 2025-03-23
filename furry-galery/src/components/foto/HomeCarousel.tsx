@@ -1,7 +1,7 @@
 'use client';
 
 import { useState, useEffect, useCallback } from 'react';
-import { Box, Typography, Paper, Avatar, Stack, Chip, IconButton, Tooltip, CircularProgress } from '@mui/material';
+import { Box, Typography, Paper, Avatar, Stack, Chip, IconButton, Tooltip, CircularProgress, useTheme, useMediaQuery } from '@mui/material';
 import { getPhotos, Photo, likePhoto, unlikePhoto } from '@/app/actions/photos';
 import { PhotoDetailModal } from './PhotoDetailModal';
 import { PhotoFooter } from './PhotoFooter';
@@ -74,6 +74,8 @@ export const HomeCarousel = ({
   subtitle = 'Váš portál pro furry fotografii a umění',
   limit = 10
 }: HomeCarouselProps) => {
+  const theme = useTheme();
+  const isMobile = useMediaQuery(theme.breakpoints.down('sm'));
   const [photos, setPhotos] = useState<Photo[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
@@ -202,7 +204,8 @@ export const HomeCarousel = ({
     return (
       <Box 
         sx={{ 
-          height: 500, 
+          paddingTop: isMobile ? '56.25%' : undefined, // 16:9 poměr pro mobilní zařízení
+          height: isMobile ? 0 : 500, 
           width: '100%', 
           bgcolor: 'black', 
           position: 'relative',
@@ -236,16 +239,19 @@ export const HomeCarousel = ({
             width: '100%',
             zIndex: 5,
             p: { xs: 3, md: 6 },
+            pointerEvents: 'none', // Umožní klikání skrz tento element
           }}
         >
           <Typography component="h1" variant="h3" color="white" gutterBottom sx={{ 
             textShadow: '0 2px 10px rgba(0,0,0,0.9)',
-            fontWeight: 'bold' 
+            fontWeight: 'bold',
+            fontSize: { xs: '1.75rem', sm: '2.5rem', md: '3rem' } // Responzivní velikost fontu
           }}>
             {title}
           </Typography>
           <Typography variant="h5" color="white" paragraph sx={{ 
-            textShadow: '0 2px 10px rgba(0,0,0,0.9)'
+            textShadow: '0 2px 10px rgba(0,0,0,0.9)',
+            fontSize: { xs: '1rem', sm: '1.25rem', md: '1.5rem' } // Responzivní velikost fontu
           }}>
             {subtitle}
           </Typography>
@@ -264,7 +270,8 @@ export const HomeCarousel = ({
               backgroundColor: 'black',
               color: '#fff',
               overflow: 'hidden',
-              height: 500,
+              height: isMobile ? 0 : 500, // Na mobilu řídíme výšku pomocí paddingTop
+              paddingTop: isMobile ? '56.25%' : undefined, // 16:9 poměr pro mobilní zařízení
               display: 'flex',
               alignItems: 'center',
               justifyContent: 'center',
@@ -275,7 +282,9 @@ export const HomeCarousel = ({
           >
             {/* Obsah fotografie - podobný jako v PhotoDetailModal, ale přizpůsobený pro carousel */}
             <Box sx={{ 
-              position: 'relative',
+              position: 'absolute',
+              top: 0,
+              left: 0,
               width: '100%',
               height: '100%',
               display: 'flex',
@@ -319,8 +328,8 @@ export const HomeCarousel = ({
                     bgcolor: 'rgba(0, 0, 0, 0.3)',
                     opacity: 0.7,
                     borderRadius: 30,
-                    width: 48,
-                    height: 48,
+                    width: isMobile ? 40 : 48,
+                    height: isMobile ? 40 : 48,
                     display: 'flex',
                     alignItems: 'center',
                     justifyContent: 'center',
@@ -332,7 +341,7 @@ export const HomeCarousel = ({
                   }}
                 >
                   <Box component="span" sx={{ 
-                    fontSize: '2rem',
+                    fontSize: isMobile ? '1.5rem' : '2rem',
                     display: 'flex',
                     alignItems: 'center',
                     justifyContent: 'center',
@@ -366,8 +375,8 @@ export const HomeCarousel = ({
                     bgcolor: 'rgba(0, 0, 0, 0.3)',
                     opacity: 0.7,
                     borderRadius: 30,
-                    width: 48,
-                    height: 48,
+                    width: isMobile ? 40 : 48,
+                    height: isMobile ? 40 : 48,
                     display: 'flex',
                     alignItems: 'center',
                     justifyContent: 'center',
@@ -379,7 +388,7 @@ export const HomeCarousel = ({
                   }}
                 >
                   <Box component="span" sx={{ 
-                    fontSize: '2rem',
+                    fontSize: isMobile ? '1.5rem' : '2rem',
                     display: 'flex',
                     alignItems: 'center',
                     justifyContent: 'center',
@@ -392,12 +401,14 @@ export const HomeCarousel = ({
                 </Box>
               </Box>
               
-              {/* Použití komponenty PhotoFooter */}
-              <PhotoFooter 
-                photo={currentPhoto}
-                onDownload={handleDownload}
-                maxTags={3}
-              />
+              {/* Pačička s informacemi - zobrazena pouze na větších obrazovkách */}
+              {!isMobile && (
+                <PhotoFooter 
+                  photo={currentPhoto}
+                  onDownload={handleDownload}
+                  maxTags={3}
+                />
+              )}
             </Box>
           </Paper>
         </Box>

@@ -23,11 +23,14 @@ import {
   IconButton,
   Grid,
   Checkbox,
-  FormControlLabel
+  FormControlLabel,
+  Button
 } from '@mui/material';
 import ClearIcon from '@mui/icons-material/Clear';
 import FavoriteIcon from '@mui/icons-material/Favorite';
 import FavoriteBorderIcon from '@mui/icons-material/FavoriteBorder';
+import ExpandLessIcon from '@mui/icons-material/ExpandLess';
+import ExpandMoreIcon from '@mui/icons-material/ExpandMore';
 import { PhotoGrid } from '@/components/foto/PhotoGrid';
 import { PhotoGalleryProvider, usePhotoGallery } from '@/app/contexts/PhotoGalleryContext';
 import { useRouter, usePathname, useSearchParams } from 'next/navigation';
@@ -103,6 +106,10 @@ function GalleryFilterPanel() {
     searchEvents,
     searchTags
   } = usePhotoGallery();
+  const theme = useTheme();
+  const isMobile = useMediaQuery(theme.breakpoints.down('sm'));
+  const [expanded, setExpanded] = useState(!isMobile);
+  const { data: session } = useSession();
 
   // Handler pro změnu události
   const handleEventChange = (_event: React.SyntheticEvent, newValue: string | null) => {
@@ -144,137 +151,186 @@ function GalleryFilterPanel() {
     updateFilters({ onlyLiked: event.target.checked });
   };
 
+  // Toggle expanded state
+  const toggleExpanded = () => {
+    setExpanded(!expanded);
+  };
+
   return (
     <Paper 
       elevation={0}
       sx={{ 
-        p: 3, 
+        p: { xs: 2, sm: 2.5 }, 
+        bgcolor: 'background.paper', 
         borderRadius: 2,
-        border: '1px solid',
-        borderColor: 'divider'
+        overflow: 'hidden'
       }}
     >
-      <Grid container spacing={2}>
-        {/* Události */}
-        <Grid item xs={12} sm={6} md={3}>
-          <Box sx={{ display: 'flex', flexDirection: 'column' }}>
-            <Autocomplete
-              id="event-filter"
-              options={events}
-              value={filters.event || null}
-              onChange={handleEventChange}
-              onInputChange={handleEventInputChange}
-              loading={loadingFilterOptions}
-              loadingText="Načítám události..."
-              noOptionsText="Žádné události nenalezeny"
-              disableClearable={false}
-              renderInput={(params) => (
-                <TextField
-                  {...params}
-                  label="Událost"
-                  fullWidth
-                  variant="outlined"
-                />
-              )}
-            />
-            
-            <Box sx={{ display: 'flex', mt: 1 }}>
+      {/* Mobilní verze s možností rozbalení/sbalení */}
+      {isMobile && (
+        <Box 
+          onClick={toggleExpanded} 
+          sx={{ 
+            display: 'flex', 
+            justifyContent: 'space-between', 
+            alignItems: 'center',
+            cursor: 'pointer',
+            mb: expanded ? 2 : 0,
+            pb: 1
+          }}
+        >
+          <Typography variant="subtitle1" fontWeight="medium">
+            Filtry a vyhledávání
+          </Typography>
+          <IconButton size="small">
+            {expanded ? <ExpandLessIcon /> : <ExpandMoreIcon />}
+          </IconButton>
+        </Box>
+      )}
+      
+      {/* Obsah filtračního panelu */}
+      <Box sx={{ display: expanded ? 'block' : 'none' }}>
+        {/* První řádek - všechna pole */}
+        <Grid container spacing={2} sx={{ mb: 2 }}>
+          <Grid item xs={12} sm={3}>
+            <FormControl fullWidth size={isMobile ? "small" : "medium"}>
+              <Autocomplete
+                freeSolo
+                options={photographers}
+                value={filters.photographer || null}
+                onChange={handlePhotographerChange}
+                onInputChange={handlePhotographerInputChange}
+                loading={loadingFilterOptions}
+                renderInput={(params) => (
+                  <TextField
+                    {...params}
+                    label="Fotograf"
+                    size={isMobile ? "small" : "medium"}
+                    InputProps={{
+                      ...params.InputProps,
+                      endAdornment: (
+                        <>
+                          {loadingFilterOptions ? <CircularProgress color="inherit" size={20} /> : null}
+                          {params.InputProps.endAdornment}
+                        </>
+                      ),
+                    }}
+                  />
+                )}
+              />
+            </FormControl>
+          </Grid>
+          
+          <Grid item xs={12} sm={3}>
+            <FormControl fullWidth size={isMobile ? "small" : "medium"}>
+              <Autocomplete
+                freeSolo
+                options={events}
+                value={filters.event || null}
+                onChange={handleEventChange}
+                onInputChange={handleEventInputChange}
+                loading={loadingFilterOptions}
+                renderInput={(params) => (
+                  <TextField
+                    {...params}
+                    label="Událost"
+                    size={isMobile ? "small" : "medium"}
+                    InputProps={{
+                      ...params.InputProps,
+                      endAdornment: (
+                        <>
+                          {loadingFilterOptions ? <CircularProgress color="inherit" size={20} /> : null}
+                          {params.InputProps.endAdornment}
+                        </>
+                      ),
+                    }}
+                  />
+                )}
+              />
+            </FormControl>
+          </Grid>
+          
+          <Grid item xs={12} sm={3}>
+            <FormControl fullWidth size={isMobile ? "small" : "medium"}>
+              <Autocomplete
+                multiple
+                filterSelectedOptions
+                limitTags={2}
+                options={availableTags}
+                value={filters.tags || []}
+                onChange={handleTagChange}
+                onInputChange={handleTagInputChange}
+                loading={loadingFilterOptions}
+                renderInput={(params) => (
+                  <TextField
+                    {...params}
+                    label="Tagy"
+                    size={isMobile ? "small" : "medium"}
+                    InputProps={{
+                      ...params.InputProps,
+                      endAdornment: (
+                        <>
+                          {loadingFilterOptions ? <CircularProgress color="inherit" size={20} /> : null}
+                          {params.InputProps.endAdornment}
+                        </>
+                      ),
+                    }}
+                  />
+                )}
+              />
+            </FormControl>
+          </Grid>
+          
+          <Grid item xs={12} sm={3}>
+            <FormControl fullWidth size={isMobile ? "small" : "medium"}>
+              <InputLabel id="sort-by-label">Řazení</InputLabel>
+              <Select
+                labelId="sort-by-label"
+                id="sort-by-select"
+                value={filters.sortBy || 'newest'}
+                onChange={handleSortChange}
+                label="Řazení"
+                size={isMobile ? "small" : "medium"}
+              >
+                <MenuItem value="newest">Nejnovější</MenuItem>
+                <MenuItem value="oldest">Nejstarší</MenuItem>
+                <MenuItem value="most_liked">Nejoblíbenější</MenuItem>
+              </Select>
+            </FormControl>
+          </Grid>
+        </Grid>
+        
+        {/* Druhý řádek - oblíbené a reset */}
+        <Box sx={{ 
+          display: 'flex', 
+          justifyContent: 'space-between', 
+          alignItems: 'center',
+          mt: 1
+        }}>
+          <Box>
+            {session?.user && (
               <FormControlLabel
                 control={
-                  <Checkbox
-                    checked={!!filters.onlyLiked}
+                  <Checkbox 
+                    checked={filters.onlyLiked || false} 
                     onChange={handleOnlyLikedChange}
-                    icon={<FavoriteBorderIcon />}
-                    checkedIcon={<FavoriteIcon />}
-                    color="primary"
-                    size="small"
+                    size={isMobile ? "small" : "medium"}
                   />
                 }
                 label="Jen oblíbené"
               />
-            </Box>
-          </Box>
-        </Grid>
-
-        {/* Fotografové */}
-        <Grid item xs={12} sm={6} md={3}>
-          <Autocomplete
-            id="photographer-filter"
-            options={photographers}
-            value={filters.photographer || null}
-            onChange={handlePhotographerChange}
-            onInputChange={handlePhotographerInputChange}
-            loading={loadingFilterOptions}
-            loadingText="Načítám fotografy..."
-            noOptionsText="Žádní fotografové nenalezeni"
-            disableClearable={false}
-            renderInput={(params) => (
-              <TextField
-                {...params}
-                label="Fotograf"
-                fullWidth
-                variant="outlined"
-              />
             )}
-          />
-        </Grid>
-
-        {/* Tagy */}
-        <Grid item xs={12} sm={6} md={3}>
-          <Autocomplete
-            id="tags-filter"
-            multiple
-            options={availableTags}
-            value={filters.tags || []}
-            onChange={handleTagChange}
-            onInputChange={handleTagInputChange}
-            loading={loadingFilterOptions}
-            loadingText="Načítám tagy..."
-            noOptionsText="Žádné tagy nenalezeny"
-            renderInput={(params) => (
-              <TextField
-                {...params}
-                label="Tagy"
-                fullWidth
-                variant="outlined"
-                placeholder={filters.tags && filters.tags.length > 0 ? "" : "Vyberte tagy"}
-              />
-            )}
-          />
-        </Grid>
-
-        {/* Řazení */}
-        <Grid item xs={12} sm={6} md={3}>
-          <Box sx={{ display: 'flex', flexDirection: 'column' }}>
-            <FormControl fullWidth variant="outlined">
-              <InputLabel id="sort-by-label">Řadit podle</InputLabel>
-              <Select
-                labelId="sort-by-label"
-                id="sort-by"
-                value={filters.sortBy}
-                onChange={handleSortChange}
-                label="Řadit podle"
-              >
-                <MenuItem value="newest">Nejnovější</MenuItem>
-                <MenuItem value="oldest">Nejstarší</MenuItem>
-                <MenuItem value="most_liked">Nejvíce líbí</MenuItem>
-              </Select>
-            </FormControl>
-            
-            <Box sx={{ display: 'flex', alignItems: 'center', mt: 1, justifyContent: 'flex-end' }}>
-              <IconButton
-                onClick={resetFilters}
-                color="primary"
-                size="medium"
-                aria-label="Vymazat filtry"
-                title="Vymazat filtry"
-              >
-                <ClearIcon />
-              </IconButton>
-            </Box>
           </Box>
-        </Grid>
-      </Grid>
+          <Button 
+            startIcon={<ClearIcon />}
+            onClick={resetFilters}
+            disabled={!filters.photographer && !filters.event && (!filters.tags || filters.tags.length === 0) && !filters.onlyLiked && filters.sortBy === 'newest'}
+            size={isMobile ? "small" : "medium"}
+          >
+            Vyčistit filtry
+          </Button>
+        </Box>
+      </Box>
     </Paper>
   );
 }

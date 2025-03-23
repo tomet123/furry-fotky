@@ -119,8 +119,15 @@ export const CanvasImage: React.FC<CanvasImageProps> = memo(({
         containerHeight / img.naturalHeight
       );
       
-      const scaledWidth = img.naturalWidth * scale;
-      const scaledHeight = img.naturalHeight * scale;
+      // Zjistíme, zda budou černé pruhy
+      const hasBlackBars = 
+        containerWidth > img.naturalWidth * scale || 
+        containerHeight > img.naturalHeight * scale;
+      
+      // Pokud se mají zobrazit černé pruhy, zvětšíme obrázek o 7% (střed rozmezí 5-10%)
+      const zoomFactor = hasBlackBars ? 1.15 : 1;
+      const scaledWidth = img.naturalWidth * scale * zoomFactor;
+      const scaledHeight = img.naturalHeight * scale * zoomFactor;
       
       const x = (containerWidth - scaledWidth) / 2;
       const y = (containerHeight - scaledHeight) / 2;

@@ -18,6 +18,7 @@ const roboto = Roboto({
 export const metadata = {
   title: 'FurryFotky.cz - Fotogalerie',
   description: 'Fotogalerie a komunita pro milovníky furry',
+  viewport: 'width=device-width, initial-scale=1, maximum-scale=5',
 };
 
 export default function RootLayout(props: { children: React.ReactNode }) {
