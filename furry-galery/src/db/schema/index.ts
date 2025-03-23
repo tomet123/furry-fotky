@@ -1,10 +1,16 @@
-import { users, photographers, organizers } from './users';
-import { events, tags } from './events';
-import { photos, storagePhotos, storageProfilePictures, photoTags, photoLikes } from './photos';
+import { photographers, organizers } from "./users";
+import { events, tags } from "./events";
+import { photos, storagePhotos, storageProfilePictures, photoTags, photoLikes } from "./photos";
+import { user, account, session, verificationToken } from "./auth";
 
 export {
-  // Uživatelé a role
-  users,
+  // NextAuth.js tabulky
+  user,
+  account,
+  session,
+  verificationToken,
+  
+  // Uživatelské role
   photographers,
   organizers,
   
@@ -18,4 +24,4 @@ export {
   storageProfilePictures,
   photoTags,
   photoLikes,
-}; 
+};

@@ -1,17 +1,36 @@
 'use client';
-import { AppBar, Toolbar, Typography, Button, Box, Container, Tabs, Tab } from '@mui/material';
+import { AppBar, Toolbar, Typography, Button, Box, Container, Tabs, Tab, Avatar, Menu, MenuItem, IconButton } from '@mui/material';
 import Link from 'next/link';
 import { usePathname } from 'next/navigation';
+import { useSession, signOut } from 'next-auth/react';
+import { useState } from 'react';
+import PersonIcon from '@mui/icons-material/Person';
 
 export default function Header() {
   const pathname = usePathname();
+  const { data: session, status } = useSession();
+  const [anchorEl, setAnchorEl] = useState<null | HTMLElement>(null);
+  const open = Boolean(anchorEl);
+
+  // Menu pro přihlášeného uživatele
+  const handleClick = (event: React.MouseEvent<HTMLElement>) => {
+    setAnchorEl(event.currentTarget);
+  };
+
+  const handleClose = () => {
+    setAnchorEl(null);
+  };
+
+  const handleLogout = () => {
+    signOut({ redirect: false });
+    handleClose();
+  };
 
   // Zjištění aktivní záložky podle aktuální cesty
   const getTabValue = () => {
-    if (pathname === '/fotky' || pathname?.startsWith('/fotky/')) return 0;
-    if (pathname === '/galerie') return 1;
-    if (pathname === '/akce') return 2;
-    if (pathname === '/uzivatele') return 3;
+    if (pathname === '/fotogalerie' || pathname?.startsWith('/fotogalerie/')) return 0;
+    if (pathname === '/akce') return 1;
+    if (pathname === '/uzivatele') return 2;
     return false;
   };
 
@@ -41,12 +60,7 @@ export default function Header() {
             <Tab 
               label="Fotografie" 
               component={Link} 
-              href="/fotky" 
-            />
-            <Tab 
-              label="Galerie" 
-              component={Link} 
-              href="/galerie" 
+              href="/fotogalerie" 
             />
             <Tab 
               label="Akce" 
@@ -60,20 +74,56 @@ export default function Header() {
             />
           </Tabs>
 
-          {/* Přihlášení a registrace */}
+          {/* Přihlášení/Odhlášení */}
           <Box>
-            <Button color="inherit" component={Link} href="/login">
-              Přihlášení
-            </Button>
-            <Button 
-              variant="contained" 
-              color="secondary" 
-              component={Link} 
-              href="/register"
-              sx={{ ml: 1 }}
-            >
-              Registrace
-            </Button>
+            {status === 'authenticated' && session?.user ? (
+              <>
+                <IconButton
+                  onClick={handleClick}
+                  size="small"
+                  aria-controls={open ? 'account-menu' : undefined}
+                  aria-haspopup="true"
+                  aria-expanded={open ? 'true' : undefined}
+                >
+                  <Avatar sx={{ width: 32, height: 32, bgcolor: 'secondary.main' }}>
+                    {session.user.name?.charAt(0).toUpperCase() || <PersonIcon />}
+                  </Avatar>
+                </IconButton>
+                <Menu
+                  id="account-menu"
+                  anchorEl={anchorEl}
+                  open={open}
+                  onClose={handleClose}
+                  transformOrigin={{ horizontal: 'right', vertical: 'top' }}
+                  anchorOrigin={{ horizontal: 'right', vertical: 'bottom' }}
+                >
+                  <MenuItem disabled>
+                    <Typography variant="body2">
+                      Přihlášen jako: <strong>{session.user.name}</strong>
+                    </Typography>
+                  </MenuItem>
+                  <MenuItem onClick={handleClose} component={Link} href="/profil">
+                    Můj profil
+                  </MenuItem>
+                  <MenuItem onClick={handleLogout}>Odhlásit se</MenuItem>
+                </Menu>
+              </>
+            ) : (
+              <>
+                <Button color="inherit" component={Link} href="/login">
+                  Přihlášení
+                </Button>
+                <Button
+                  variant="contained"
+                  color="secondary"
+                  component={Link}
+                  href="/register"
+                  sx={{ ml: 1 }}
+                >
+                  Registrace
+                </Button>
+              </>
+            )}
           </Box>
         </Toolbar>
       </Container>

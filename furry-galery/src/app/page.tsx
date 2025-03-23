@@ -1,5 +1,7 @@
 'use client';
-import { Container, Typography, Paper, Box } from '@mui/material';
+import { Container, Typography, Paper, Box, Button } from '@mui/material';
+import Link from 'next/link';
+import PhotoLibraryIcon from '@mui/icons-material/PhotoLibrary';
 
 export default function Home() {
   return (
@@ -28,6 +30,29 @@ export default function Home() {
           Připravujeme pro vás místo, kde můžete sdílet své nejlepší fotografie a spojit se s komunitou.
         </Typography>
       </Paper>
+
+      <Box sx={{ mt: 5, display: 'flex', flexDirection: 'column', alignItems: 'center' }}>
+        <Button
+          component={Link}
+          href="/fotogalerie"
+          variant="contained"
+          size="large"
+          startIcon={<PhotoLibraryIcon />}
+          sx={{ mb: 2 }}
+        >
+          Prohlédnout fotogalerii
+        </Button>
+        
+        <Button
+          component={Link}
+          href="/test-filters"
+          variant="outlined"
+          size="small"
+          sx={{ mt: 1 }}
+        >
+          Test filtrů a actions
+        </Button>
+      </Box>
     </Container>
   );
 }

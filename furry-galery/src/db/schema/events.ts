@@ -4,7 +4,7 @@ import { organizers } from './users';
 
 // Tabulka událostí
 export const events = sqliteTable('events', {
-  id: text('id').primaryKey().$defaultFn(createId),
+  id: text('id').primaryKey().$defaultFn(() => createId('event_')),
   name: text('name').notNull(),
   organizerId: text('organizer_id').notNull().references(() => organizers.id, { onDelete: 'restrict' }),
   description: text('description'),
@@ -15,7 +15,7 @@ export const events = sqliteTable('events', {
 
 // Tabulka tagů
 export const tags = sqliteTable('tags', {
-  id: text('id').primaryKey().$defaultFn(createId),
+  id: text('id').primaryKey().$defaultFn(() => createId('tag_')),
   name: text('name').notNull().unique(),
   createdAt: integer('created_at', { mode: 'timestamp' }).$defaultFn(() => new Date()),
 });

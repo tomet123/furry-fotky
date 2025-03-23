@@ -3,13 +3,13 @@ import Database from 'better-sqlite3';
 import * as schema from './schema';
 import { createId } from './utils';
 
-// Import dotazovacích modulů
+// Import pomocných dotazovacích modulů
 import { eq, and, or, not, like } from 'drizzle-orm';
 
 // Inicializace SQLite databáze
 const sqlite = new Database('./sqlite.db');
 
-// Vytvoření drizzle klienta
+// Vytvoření Drizzle klienta
 export const db = drizzle(sqlite, { schema });
 
 // Export pomocných funkcí

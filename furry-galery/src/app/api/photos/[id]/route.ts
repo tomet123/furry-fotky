@@ -13,7 +13,7 @@ export async function GET(
 ) {
   try {
     // Použití parametrů až po zajištění, že jsou k dispozici
-    const { id } = params;
+    const id = params.id;
     
     if (!id) {
       return new NextResponse("Chybí ID fotografie", { status: 400 });

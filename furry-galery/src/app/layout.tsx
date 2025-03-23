@@ -5,6 +5,7 @@ import { Box, Container, CssBaseline } from '@mui/material';
 import theme from '../theme';
 import Header from '../components/Header';
 import Footer from '../components/Footer';
+import AuthProvider from '../providers/AuthProvider';
 import './globals.css';
 
 const roboto = Roboto({
@@ -25,28 +26,30 @@ export default function RootLayout(props: { children: React.ReactNode }) {
     <html lang="cs">
       <body className={roboto.variable}>
         <AppRouterCacheProvider>
-          <ThemeProvider theme={theme}>
-            <CssBaseline />
-            <Box
-              sx={{
-                display: 'flex',
-                flexDirection: 'column',
-                minHeight: '100vh',
-              }}
-            >
-              <Header />
+          <AuthProvider>
+            <ThemeProvider theme={theme}>
+              <CssBaseline />
               <Box
-                component="main"
                 sx={{
-                  flexGrow: 1,
-                  py: 3,
+                  display: 'flex',
+                  flexDirection: 'column',
+                  minHeight: '100vh',
                 }}
               >
-                {children}
+                <Header />
+                <Box
+                  component="main"
+                  sx={{
+                    flexGrow: 1,
+                    py: 3,
+                  }}
+                >
+                  {children}
+                </Box>
+                <Footer />
               </Box>
-              <Footer />
-            </Box>
-          </ThemeProvider>
+            </ThemeProvider>
+          </AuthProvider>
         </AppRouterCacheProvider>
       </body>
     </html>

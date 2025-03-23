@@ -1,7 +1,10 @@
-import { customAlphabet } from 'nanoid';
+import { nanoid } from 'nanoid';
 
-// Funkce pro generování unikátních ID
-export const createId = (prefix = '') => {
-  const nanoid = customAlphabet('0123456789ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz', 12);
+/**
+ * Vytvoří unikátní ID s volitelným prefixem
+ * @param prefix Volitelný prefix pro ID
+ * @returns Unikátní ID
+ */
+export function createId(prefix: string = ''): string {
   return `${prefix}${nanoid()}`;
-}; 
+} 

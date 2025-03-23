@@ -2,7 +2,8 @@
 
 import { db } from "@/db";
 import { photos, photoTags, storagePhotos, photoLikes } from "@/db/schema";
-import { photographers, users } from "@/db/schema/users";
+import { photographers } from "@/db/schema/users";
+import { user } from "@/db/schema/auth";
 import { events, tags } from "@/db/schema/events";
 import { eq, and, inArray, sql, like, desc, asc, or, SQL } from "drizzle-orm";
 import { revalidatePath } from "next/cache";
@@ -33,6 +34,8 @@ export type PhotoFilters = {
   sortBy?: 'newest' | 'oldest' | 'most_liked';
   page?: number;
   limit?: number;
+  onlyLiked?: boolean;
+  userId?: string; // ID aktuálního uživatele pro filtrování oblíbených fotek
 };
 
 /**
@@ -45,11 +48,36 @@ export async function getPhotos({
   tags: filterTags,
   sortBy = 'newest',
   page = 1,
-  limit = 12
+  limit = 12,
+  onlyLiked = false,
+  userId
 }: PhotoFilters = {}) {
   try {
     // Připravíme podmínky pro filtrování
     const conditions: SQL<unknown>[] = [];
+
+    // Filtrování pouze oblíbených fotografií
+    if (onlyLiked && userId) {
+      // Najdeme ID fotografií, které uživatel označil jako oblíbené
+      const likedPhotos = await db
+        .select({
+          photoId: photoLikes.photoId,
+        })
+        .from(photoLikes)
+        .where(eq(photoLikes.userId, userId));
+      
+      if (likedPhotos.length > 0) {
+        const likedPhotoIds = likedPhotos.map(p => p.photoId);
+        conditions.push(inArray(photos.id, likedPhotoIds));
+      } else {
+        // Pokud uživatel nemá žádné oblíbené fotografie, vrátíme prázdný výsledek
+        return {
+          photos: [],
+          totalItems: 0,
+          totalPages: 0
+        };
+      }
+    }
 
     // Filtrování podle fotografa
     if (photographer) {
@@ -60,8 +88,8 @@ export async function getPhotos({
           userId: photographers.userId,
         })
         .from(photographers)
-        .innerJoin(users, eq(photographers.userId, users.id))
-        .where(like(users.username, `%${photographer}%`));
+        .innerJoin(user, eq(photographers.userId, user.id))
+        .where(like(user.username, `%${photographer}%`));
       
       if (photographersWithName.length > 0) {
         const photographerIds = photographersWithName.map(p => p.id);
@@ -217,11 +245,11 @@ export async function getPhotos({
     const userIds = photographersData.map(p => p.userId);
     const usersData = await db
       .select({
-        id: users.id,
-        username: users.username,
+        id: user.id,
+        username: user.username,
       })
-      .from(users)
-      .where(inArray(users.id, userIds));
+      .from(user)
+      .where(inArray(user.id, userIds));
     
     // Získání názvů událostí
     const eventsData = eventIds.length > 0 
@@ -328,25 +356,27 @@ export async function getPhotoById(photoId: string, userId?: string) {
     }
     
     // Získání informací o fotografovi
-    const [photographer] = await db
+    const photographer = await db
       .select({
+        id: photographers.id,
         userId: photographers.userId,
       })
       .from(photographers)
-      .where(eq(photographers.id, photoResult.photographerId));
+      .where(eq(photographers.id, photoResult.photographerId))
+      .then(rows => rows[0]);
     
     // Získání jména fotografa
-    let username = 'Neznámý fotograf';
+    let photographerName = 'Neznámý fotograf';
     if (photographer) {
-      const [user] = await db
+      const [userData] = await db
         .select({
-          username: users.username,
+          username: user.username,
         })
-        .from(users)
-        .where(eq(users.id, photographer.userId));
+        .from(user)
+        .where(eq(user.id, photographer.userId));
       
-      if (user) {
-        username = user.username;
+      if (userData) {
+        photographerName = userData.username;
       }
     }
     
@@ -410,7 +440,7 @@ export async function getPhotoById(photoId: string, userId?: string) {
     return {
       id: photoResult.id,
       photographerId: photoResult.photographerId,
-      photographer: username,
+      photographer: photographerName,
       avatarUrl: `/api/profile-pictures/${photographer?.userId || 'unknown'}`,
       eventId: photoResult.eventId || undefined,
       event: eventName || undefined,

@@ -1,16 +1,30 @@
 import { faker } from '@faker-js/faker';
-import { db, users, photographers, organizers, events, tags, photos, storagePhotos, photoTags, photoLikes, storageProfilePictures } from './index';
+import { 
+  db, 
+  user, // Nová tabulka místo users
+  photographers, 
+  organizers, 
+  events, 
+  tags, 
+  photos, 
+  storagePhotos, 
+  photoTags, 
+  photoLikes, 
+  storageProfilePictures 
+} from './index';
 import { createId } from './utils';
 import crypto from 'crypto';
 import fs from 'fs';
 import path from 'path';
 import * as https from 'https';
+import bcrypt from 'bcrypt';
 
 console.log('🌱 Začínám seed databáze...');
 
-// Funkce pro vytvoření hashe hesla (simulace)
-function hashPassword(password: string): string {
-  return crypto.createHash('sha256').update(password).digest('hex');
+// Funkce pro vytvoření hashe hesla pomocí bcrypt
+async function hashPassword(password: string): Promise<string> {
+  const saltRounds = 10;
+  return bcrypt.hash(password, saltRounds);
 }
 
 // Funkce pro stažení obrázku s podporou přesměrování
@@ -67,7 +81,7 @@ async function cleanDatabase() {
   await db.delete(tags);
   await db.delete(photographers);
   await db.delete(organizers);
-  await db.delete(users);
+  await db.delete(user); // Používáme novou tabulku
 }
 
 // Hlavní funkce pro seed databáze
@@ -150,17 +164,21 @@ async function seedDatabase() {
       const randomIndex = Math.floor(Math.random() * createdAvatars.length);
       const avatarId = Math.random() > 0.3 ? createdAvatars[randomIndex].id : null;
       
-      const user = {
+      // Hashování hesla pomocí bcrypt
+      const passwordHash = await hashPassword('password123');
+      
+      const newUser = {
         id: createId('user_'),
+        name: userData.username, // Jméno je nové pole v NextAuth schématu
         username: userData.username,
         email: userData.email,
-        passwordHash: hashPassword('password123'),
+        passwordHash: passwordHash,
         isAdmin: userData.isAdmin,
         isActive: true,
         createdAt: new Date(),
       };
       
-      await db.insert(users).values(user);
+      await db.insert(user).values(newUser);
       
       // Pokud máme avatar, vytvoříme nový záznam avataru s ID uživatele
       if (avatarId) {
@@ -171,7 +189,7 @@ async function seedDatabase() {
           thumbnailData: avatar.thumbnailData,
           contentType: avatar.contentType,
           originalName: avatar.originalName,
-          userId: user.id,
+          userId: newUser.id,
           createdAt: new Date()
         };
         
@@ -183,7 +201,7 @@ async function seedDatabase() {
         sqlite.prepare('DELETE FROM storage_profile_pictures WHERE id = ?').run(avatarId);
       }
       
-      createdUsers.push(user);
+      createdUsers.push(newUser);
     }
     
     // Vložíme fotografy
@@ -363,18 +381,8 @@ async function seedDatabase() {
       const sourceIndex = (i - 6) % createdStorages.length;
       const sourceStorage = createdStorages[sourceIndex];
       
-      // Definujeme typ pro úložiště
-      type StorageType = {
-        id: string;
-        fileData: Buffer;
-        thumbnailData: Buffer;
-        contentType: string;
-        originalName: string;
-        createdAt: Date;
-      };
-      
       // Vytvoříme nový záznam jako kopii existujícího
-      const newStorage: StorageType = {
+      const newStorage = {
         id: createId('storage_'),
         fileData: sourceStorage.fileData,
         thumbnailData: sourceStorage.thumbnailData,
