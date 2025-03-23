@@ -12,8 +12,8 @@ export async function GET(
   { params }: { params: { id: string } }
 ) {
   try {
-    // Použití parametrů až po zajištění, že jsou k dispozici
-    const id = params.id;
+    // Použití destructuring pro získání id z params
+    const { id } = params;
     
     if (!id) {
       return new NextResponse("Chybí ID fotografie", { status: 400 });

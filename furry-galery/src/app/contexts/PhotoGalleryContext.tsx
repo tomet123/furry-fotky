@@ -33,10 +33,6 @@ type PhotoGalleryContextType = {
   availableTags: string[];
   loadingFilterOptions: boolean;
   
-  // Stav aktivní fotky v modálu
-  activePhotoId: string | null;
-  setActivePhotoId: (id: string | null) => void;
-  
   // Akce
   updateFilters: (newFilters: Partial<PhotoFilters>) => void;
   resetFilters: () => void;
@@ -62,9 +58,6 @@ const PhotoGalleryContext = createContext<PhotoGalleryContextType>({
   availableTags: [],
   loadingFilterOptions: false,
   
-  activePhotoId: null,
-  setActivePhotoId: () => {},
-  
   updateFilters: () => {},
   resetFilters: () => {},
   setPage: () => {},
@@ -85,9 +78,6 @@ export function PhotoGalleryProvider({ children }: { children: React.ReactNode }
   const [currentPage, setCurrentPage] = useState<number>(1);
   const [filters, setFilters] = useState<PhotoFilters>(DEFAULT_FILTERS);
   
-  // Stav pro aktivní fotku v modálu
-  const [activePhotoId, setActivePhotoId] = useState<string | null>(null);
-  
   // Stav pro data filtrů
   const [photographers, setPhotographers] = useState<string[]>([]);
   const [events, setEvents] = useState<string[]>([]);
@@ -101,7 +91,7 @@ export function PhotoGalleryProvider({ children }: { children: React.ReactNode }
       const data = await getPhotographers(search);
       setPhotographers(data);
     } catch (error) {
-      console.error('Chyba při načítání fotografů:', error);
+      // Chyba zpracována tiše
     } finally {
       setLoadingFilterOptions(false);
     }
@@ -114,7 +104,7 @@ export function PhotoGalleryProvider({ children }: { children: React.ReactNode }
       const data = await getEvents(search);
       setEvents(data);
     } catch (error) {
-      console.error('Chyba při načítání událostí:', error);
+      // Chyba zpracována tiše
     } finally {
       setLoadingFilterOptions(false);
     }
@@ -127,7 +117,7 @@ export function PhotoGalleryProvider({ children }: { children: React.ReactNode }
       const data = await getTags(search);
       setAvailableTags(data);
     } catch (error) {
-      console.error('Chyba při načítání tagů:', error);
+      // Chyba zpracována tiše
     } finally {
       setLoadingFilterOptions(false);
     }
@@ -149,7 +139,7 @@ export function PhotoGalleryProvider({ children }: { children: React.ReactNode }
         setEvents(eventsData);
         setAvailableTags(tagsData);
       } catch (error) {
-        console.error('Chyba při načítání dat filtrů:', error);
+        // Chyba zpracována tiše
       } finally {
         setLoadingFilterOptions(false);
       }
@@ -167,14 +157,21 @@ export function PhotoGalleryProvider({ children }: { children: React.ReactNode }
       // Získáme ID aktuálního uživatele, pokud je potřeba pro filtrování oblíbených
       let currentFilters = { ...filters };
       
+      // Získáme ID přihlášeného uživatele z Next-Auth session
+      const sessionData = await fetch('/api/auth/session')
+        .then(res => res.json())
+        .catch(() => null);
+      
+      const userId = sessionData?.user?.id;
+      
+      // Přidáme userId do filtrů pro správné načtení informací o lajcích
+      if (userId) {
+        currentFilters.userId = userId;
+      }
+      
       if (filters.onlyLiked) {
-        // Pro získání ID přihlášeného uživatele použijeme Session API nebo localStorage
-        // Toto je jen placeholder - skutečná implementace by měla používat váš autentizační systém
-        const userId = localStorage.getItem('userId') || sessionStorage.getItem('userId');
-        if (userId) {
-          currentFilters.userId = userId;
-        } else {
-          // Pokud uživatel není přihlášen a chce vidět oblíbené, vrátíme prázdný výsledek
+        // Pokud uživatel není přihlášen a chce vidět oblíbené, vrátíme prázdný výsledek
+        if (!userId) {
           setPhotos([]);
           setTotalItems(0);
           setTotalPages(0);
@@ -194,7 +191,6 @@ export function PhotoGalleryProvider({ children }: { children: React.ReactNode }
         setFilters(prev => ({ ...prev, page: result.totalPages }));
       }
     } catch (err) {
-      console.error('Chyba při načítání fotografií:', err);
       setError('Nepodařilo se načíst fotografie');
       setPhotos([]);
       setTotalItems(0);
@@ -253,9 +249,6 @@ export function PhotoGalleryProvider({ children }: { children: React.ReactNode }
     events,
     availableTags,
     loadingFilterOptions,
-    
-    activePhotoId,
-    setActivePhotoId,
     
     updateFilters,
     resetFilters,

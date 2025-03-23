@@ -319,8 +319,32 @@ export async function getPhotos({
         likes: photo.likes,
         date: photo.date,
         tags: photoTagsMap[photo.id] || [],
+        isLikedByCurrentUser: false, // Výchozí hodnota
       };
     });
+    
+    // Pokud máme userId, zjistíme, které fotografie uživatel lajkl
+    if (userId) {
+      const likedPhotosResult = await db
+        .select({
+          photoId: photoLikes.photoId,
+        })
+        .from(photoLikes)
+        .where(
+          and(
+            inArray(photoLikes.photoId, photoIds),
+            eq(photoLikes.userId, userId)
+          )
+        );
+      
+      // Vytvoříme množinu ID lajkovaných fotek pro rychlejší vyhledávání
+      const likedPhotoIds = new Set(likedPhotosResult.map(like => like.photoId));
+      
+      // Aktualizujeme vlastnost isLikedByCurrentUser pro každou fotku
+      resultPhotos.forEach(photo => {
+        photo.isLikedByCurrentUser = likedPhotoIds.has(photo.id);
+      });
+    }
     
     return {
       photos: resultPhotos,
@@ -338,13 +362,13 @@ export async function getPhotos({
  */
 export async function getPhotoById(photoId: string, userId?: string) {
   try {
-    // Základní dotaz na fotografii
+    // Základní dotaz pro získání fotografie
     const [photoResult] = await db
       .select({
         id: photos.id,
         photographerId: photos.photographerId,
-        eventId: photos.eventId,
         storageId: photos.storageId,
+        eventId: photos.eventId,
         likes: photos.likes,
         date: photos.date,
       })
@@ -352,36 +376,37 @@ export async function getPhotoById(photoId: string, userId?: string) {
       .where(eq(photos.id, photoId));
     
     if (!photoResult) {
-      return null;
+      throw new Error('Fotografie nebyla nalezena');
     }
     
     // Získání informací o fotografovi
-    const photographer = await db
+    const [photographer] = await db
       .select({
         id: photographers.id,
         userId: photographers.userId,
       })
       .from(photographers)
-      .where(eq(photographers.id, photoResult.photographerId))
-      .then(rows => rows[0]);
+      .where(eq(photographers.id, photoResult.photographerId));
     
-    // Získání jména fotografa
     let photographerName = 'Neznámý fotograf';
+    
     if (photographer) {
-      const [userData] = await db
+      // Získání jména fotografa
+      const [user_] = await db
         .select({
           username: user.username,
         })
         .from(user)
         .where(eq(user.id, photographer.userId));
       
-      if (userData) {
-        photographerName = userData.username;
+      if (user_) {
+        photographerName = user_.username;
       }
     }
     
     // Získání názvu události
-    let eventName;
+    let eventName = undefined;
+    
     if (photoResult.eventId) {
       const [event] = await db
         .select({
@@ -395,7 +420,9 @@ export async function getPhotoById(photoId: string, userId?: string) {
       }
     }
     
-    // Získání tagů pro fotografii
+    // Získání tagů fotografie
+    const photoTagsList: string[] = [];
+    
     const photoTagsResult = await db
       .select({
         tagId: photoTags.tagId,
@@ -404,7 +431,6 @@ export async function getPhotoById(photoId: string, userId?: string) {
       .where(eq(photoTags.photoId, photoId));
     
     const tagIds = photoTagsResult.map(pt => pt.tagId);
-    const photoTagsList: string[] = [];
     
     if (tagIds.length > 0) {
       const tagsData = await db

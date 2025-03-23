@@ -1,4 +1,6 @@
-@import "tailwindcss";
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
 
 :root {
   --max-width: 1200px;
@@ -15,6 +17,26 @@
   --color-foreground: var(--foreground);
   --font-sans: var(--font-geist-sans);
   --font-mono: var(--font-geist-mono);
+}
+
+/* Vlastní animace pro modální okno */
+.MuiDialog-root {
+  transition: opacity 300ms ease-in-out !important;
+}
+
+.MuiDialog-root.MuiModal-hidden {
+  opacity: 0;
+}
+
+.MuiBackdrop-root {
+  transition: opacity 300ms ease-in-out !important;
+}
+
+/* Optimalizace pro plynulé vykreslování */
+* {
+  backface-visibility: hidden;
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
 }
 
 @media (prefers-color-scheme: dark) {

@@ -1,5 +1,5 @@
 'use client';
-import { AppBar, Toolbar, Typography, Button, Box, Container, Tabs, Tab, Avatar, Menu, MenuItem, IconButton } from '@mui/material';
+import { AppBar, Toolbar, Typography, Button, Box, Container, Tabs, Tab, Avatar, Menu, MenuItem, IconButton, Stack } from '@mui/material';
 import Link from 'next/link';
 import { usePathname } from 'next/navigation';
 import { useSession, signOut } from 'next-auth/react';
@@ -78,17 +78,29 @@ export default function Header() {
           <Box>
             {status === 'authenticated' && session?.user ? (
               <>
-                <IconButton
-                  onClick={handleClick}
-                  size="small"
-                  aria-controls={open ? 'account-menu' : undefined}
-                  aria-haspopup="true"
-                  aria-expanded={open ? 'true' : undefined}
-                >
-                  <Avatar sx={{ width: 32, height: 32, bgcolor: 'secondary.main' }}>
-                    {session.user.name?.charAt(0).toUpperCase() || <PersonIcon />}
-                  </Avatar>
-                </IconButton>
+                <Stack direction="row" spacing={1} alignItems="center">
+                  {/* Zobrazení uživatelského jména vedle avataru */}
+                  <Typography variant="body2" sx={{ display: { xs: 'none', sm: 'block' } }}>
+                    {session.user.username || session.user.name}
+                  </Typography>
+                  
+                  <IconButton
+                    onClick={handleClick}
+                    size="small"
+                    aria-controls={open ? 'account-menu' : undefined}
+                    aria-haspopup="true"
+                    aria-expanded={open ? 'true' : undefined}
+                  >
+                    {/* Použití skutečného profilového obrázku */}
+                    <Avatar 
+                      src={session.user.id ? `/api/profile-pictures/${session.user.id}` : undefined}
+                      sx={{ width: 32, height: 32, bgcolor: 'secondary.main' }}
+                    >
+                      {!session.user.id && (session.user.name?.charAt(0).toUpperCase() || <PersonIcon />)}
+                    </Avatar>
+                  </IconButton>
+                </Stack>
+                
                 <Menu
                   id="account-menu"
                   anchorEl={anchorEl}
@@ -99,7 +111,7 @@ export default function Header() {
                 >
                   <MenuItem disabled>
                     <Typography variant="body2">
-                      Přihlášen jako: <strong>{session.user.name}</strong>
+                      Přihlášen jako: <strong>{session.user.username || session.user.name}</strong>
                     </Typography>
                   </MenuItem>
                   <MenuItem onClick={handleClose} component={Link} href="/profil">

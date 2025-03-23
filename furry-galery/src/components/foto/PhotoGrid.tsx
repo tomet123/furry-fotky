@@ -1,16 +1,21 @@
 'use client';
 
+import React, { useCallback } from 'react';
 import { Grid } from '@mui/material';
+import { Photo, likePhoto, unlikePhoto } from '@/app/actions/photos';
 import { PhotoCard } from './PhotoCard';
-import { useCallback } from 'react';
-import { Photo } from '@/app/actions/photos';
-import { likePhoto, unlikePhoto } from '@/app/actions/photos';
 import { usePhotoGallery } from '@/app/contexts/PhotoGalleryContext';
+import { useSession } from 'next-auth/react';
+import { useRouter } from 'next/navigation';
 
+/**
+ * Props pro mřížku fotografií
+ */
 interface PhotoGridProps {
   photos: Photo[];
   onLikePhoto?: (photo: Photo) => Promise<void>;
   onUnlikePhoto?: (photo: Photo) => Promise<void>;
+  onPhotoClick?: (photo: Photo) => void;
 }
 
 /**
@@ -19,42 +24,53 @@ interface PhotoGridProps {
 export function PhotoGrid({ 
   photos,
   onLikePhoto,
-  onUnlikePhoto
+  onUnlikePhoto,
+  onPhotoClick
 }: PhotoGridProps) {
   const { setActivePhotoId } = usePhotoGallery();
+  const router = useRouter();
+  const { data: session } = useSession();
   
   // Funkce pro lajkování fotografie
   const handleLike = useCallback(async (photo: Photo) => {
     try {
       if (onLikePhoto) {
         await onLikePhoto(photo);
-      } else {
-        // Pokud nebyla předána funkce, použijeme server action přímo
-        await likePhoto(photo.id, 'current-user-id'); // TODO: Získat ID přihlášeného uživatele
+      } else if (session?.user?.id) {
+        // Pouze pokud je uživatel přihlášen
+        await likePhoto(photo.id, session.user.id);
       }
     } catch (error) {
       console.error('Chyba při lajkování fotografie:', error);
     }
-  }, [onLikePhoto]);
+  }, [onLikePhoto, session]);
 
   // Funkce pro odlajkování fotografie
   const handleUnlike = useCallback(async (photo: Photo) => {
     try {
       if (onUnlikePhoto) {
         await onUnlikePhoto(photo);
-      } else {
-        // Pokud nebyla předána funkce, použijeme server action přímo
-        await unlikePhoto(photo.id, 'current-user-id'); // TODO: Získat ID přihlášeného uživatele
+      } else if (session?.user?.id) {
+        // Pouze pokud je uživatel přihlášen
+        await unlikePhoto(photo.id, session.user.id);
       }
     } catch (error) {
       console.error('Chyba při odlajkování fotografie:', error);
     }
-  }, [onUnlikePhoto]);
+  }, [onUnlikePhoto, session]);
 
   // Handler pro kliknutí na fotku
   const handlePhotoClick = useCallback((photo: Photo) => {
-    setActivePhotoId(photo.id);
-  }, [setActivePhotoId]);
+    if (onPhotoClick) {
+      // Použití externí funkce pro řízení kliknutí
+      onPhotoClick(photo);
+    } else {
+      // Fallback na původní URL navigaci, pokud není předána onPhotoClick
+      router.push(`/fotogalerie?photoId=${photo.id}`);
+      // Aktualizujeme aktivní ID v kontextu
+      setActivePhotoId(photo.id);
+    }
+  }, [router, setActivePhotoId, onPhotoClick]);
 
   return (
     <Grid 
@@ -68,7 +84,6 @@ export function PhotoGrid({
           <PhotoCard 
             photo={photo}
             onClick={handlePhotoClick}
-            userId="current-user-id" // Předání ID přihlášeného uživatele
           />
         </Grid>
       ))}

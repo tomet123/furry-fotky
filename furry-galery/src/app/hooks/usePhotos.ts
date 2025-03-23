@@ -1,222 +1,195 @@
 'use client';
 
-import { useState, useEffect, useCallback, useTransition } from 'react';
-import { 
-  getPhotos, 
-  getPhotoById, 
-  likePhoto, 
-  unlikePhoto,
-  type Photo,
-  type PhotoFilters
-} from '@/app/actions/photos';
+import { useState, useEffect, useCallback } from 'react';
+import { getPhotos, getPhotoById, likePhoto, unlikePhoto, PhotoFilters } from '@/app/actions/photos';
+import type { Photo } from '@/app/actions/photos';
 
-export type UsePhotosResult = {
+// Typ pro stav použitý v usePhotos
+export type PhotosState = {
   photos: Photo[];
   loading: boolean;
   error: string | null;
   totalItems: number;
   totalPages: number;
-  refreshPhotos: () => Promise<void>;
-  likePhotoAction: (photoId: string) => Promise<void>;
-  unlikePhotoAction: (photoId: string) => Promise<void>;
+}
+
+// Výchozí hodnoty filtrů
+const DEFAULT_FILTERS: PhotoFilters = {
+  event: '',
+  photographer: '',
+  tags: [],
+  sortBy: 'newest',
+  page: 1,
+  limit: 12
 };
 
 /**
  * Hook pro práci s fotografiemi
+ * Načte fotografie podle filtrů a poskytuje funkce pro interakci
  */
-export function usePhotos(
-  initialFilters: PhotoFilters = {}
-): UsePhotosResult {
-  const [photos, setPhotos] = useState<Photo[]>([]);
-  const [loading, setLoading] = useState<boolean>(true);
-  const [error, setError] = useState<string | null>(null);
-  const [totalItems, setTotalItems] = useState<number>(0);
-  const [totalPages, setTotalPages] = useState<number>(0);
-  const [filters, setFilters] = useState<PhotoFilters>(initialFilters);
-  const [isPending, startTransition] = useTransition();
-
+export function usePhotos(initialFilters: Partial<PhotoFilters> = {}) {
+  // Stav pro fotografie a metadata
+  const [state, setState] = useState<PhotosState>({
+    photos: [],
+    loading: true,
+    error: null,
+    totalItems: 0,
+    totalPages: 0
+  });
+  
+  // Stav pro filtry
+  const [filters, setFilters] = useState<PhotoFilters>({
+    ...DEFAULT_FILTERS,
+    ...initialFilters
+  });
+  
   // Funkce pro načtení fotografií
   const fetchPhotos = useCallback(async () => {
-    setLoading(true);
-    setError(null);
+    setState(prev => ({ ...prev, loading: true, error: null }));
     
     try {
       const result = await getPhotos(filters);
-      
-      setPhotos(result.photos);
-      setTotalItems(result.totalItems);
-      setTotalPages(result.totalPages);
+      setState({
+        photos: result.photos,
+        loading: false,
+        error: null,
+        totalItems: result.totalItems,
+        totalPages: result.totalPages
+      });
     } catch (err) {
-      console.error('Chyba při načítání fotografií:', err);
-      setError('Nepodařilo se načíst fotografie');
-    } finally {
-      setLoading(false);
+      setState(prev => ({
+        ...prev,
+        loading: false,
+        error: 'Nepodařilo se načíst fotografie',
+        photos: []
+      }));
     }
   }, [filters]);
-
+  
   // Načtení fotografií při změně filtrů
   useEffect(() => {
     fetchPhotos();
   }, [fetchPhotos]);
-
+  
+  // Funkce pro změnu stránky
+  const setPage = useCallback((page: number) => {
+    setFilters(prev => ({ ...prev, page }));
+  }, []);
+  
   // Funkce pro aktualizaci filtrů
   const updateFilters = useCallback((newFilters: Partial<PhotoFilters>) => {
-    setFilters(prevFilters => ({
-      ...prevFilters,
-      ...newFilters,
-      // Pokud měníme cokoliv kromě stránky, resetujeme stránkování
-      page: newFilters.hasOwnProperty('page') ? newFilters.page : 1
-    }));
+    setFilters(prev => {
+      const isPageResetNeeded = Object.keys(newFilters).some(key => key !== 'page');
+      return {
+        ...prev,
+        ...newFilters,
+        page: isPageResetNeeded ? 1 : newFilters.page || prev.page
+      };
+    });
   }, []);
-
-  // Funkce pro like fotografie
-  const likePhotoAction = useCallback(async (photoId: string) => {
+  
+  // Funkce pro lajkování fotografie
+  const handleLike = useCallback(async (photoId: string, userId: string) => {
     try {
-      startTransition(async () => {
-        await likePhoto(photoId, 'current-user-id'); // TODO: Získat aktuální ID přihlášeného uživatele
-
-        // Aktualizujeme stav fotografií po lajku
-        setPhotos(prev => 
-          prev.map(photo => 
-            photo.id === photoId 
-              ? { 
-                  ...photo, 
-                  likes: photo.likes + 1,
-                  isLikedByCurrentUser: true
-                }
-              : photo
-          )
-        );
-      });
+      return await likePhoto(photoId, userId);
     } catch (error) {
-      console.error('Chyba při lajkování fotografie:', error);
+      // Chyba zpracována tiše
+      return false;
     }
   }, []);
-
-  // Funkce pro unlike fotografie
-  const unlikePhotoAction = useCallback(async (photoId: string) => {
+  
+  // Funkce pro odlajkování fotografie
+  const handleUnlike = useCallback(async (photoId: string, userId: string) => {
     try {
-      startTransition(async () => {
-        await unlikePhoto(photoId, 'current-user-id'); // TODO: Získat aktuální ID přihlášeného uživatele
-
-        // Aktualizujeme stav fotografií po odlajku
-        setPhotos(prev => 
-          prev.map(photo => 
-            photo.id === photoId 
-              ? { 
-                  ...photo, 
-                  likes: photo.likes - 1,
-                  isLikedByCurrentUser: false
-                }
-              : photo
-          )
-        );
-      });
+      return await unlikePhoto(photoId, userId);
     } catch (error) {
-      console.error('Chyba při odlajkování fotografie:', error);
+      // Chyba zpracována tiše
+      return false;
     }
   }, []);
-
+  
+  // Vrácení stavu a funkcí
   return {
-    photos,
-    loading: loading || isPending,
-    error,
-    totalItems,
-    totalPages,
+    ...state,
+    filters,
+    setPage,
+    updateFilters,
     refreshPhotos: fetchPhotos,
-    likePhotoAction,
-    unlikePhotoAction
+    likePhoto: handleLike,
+    unlikePhoto: handleUnlike
   };
 }
 
 /**
- * Hook pro práci s detailem fotografie
+ * Hook pro práci s jednou fotografií
+ * Načte detail fotografie podle ID
  */
-export function usePhotoDetail(photoId: string | null) {
+export function usePhoto(photoId: string) {
   const [photo, setPhoto] = useState<Photo | null>(null);
   const [loading, setLoading] = useState<boolean>(true);
   const [error, setError] = useState<string | null>(null);
-  const [isPending, startTransition] = useTransition();
-
-  // Načtení detailu fotografie
+  
   const fetchPhoto = useCallback(async () => {
     if (!photoId) {
-      setPhoto(null);
       setLoading(false);
       return;
     }
-
+    
     setLoading(true);
     setError(null);
     
     try {
-      const result = await getPhotoById(photoId, 'current-user-id'); // TODO: Získat aktuální ID přihlášeného uživatele
+      const result = await getPhotoById(photoId);
       setPhoto(result);
+      setLoading(false);
     } catch (err) {
-      console.error('Chyba při načítání detailu fotografie:', err);
       setError('Nepodařilo se načíst detail fotografie');
-    } finally {
       setLoading(false);
     }
   }, [photoId]);
-
-  // Načtení detailu při změně ID
+  
   useEffect(() => {
     fetchPhoto();
   }, [fetchPhoto]);
-
-  // Funkce pro like fotografie
-  const likePhotoAction = useCallback(async () => {
-    if (!photo) return;
+  
+  // Funkce pro lajkování fotografie
+  const handleLike = useCallback(async (userId: string) => {
+    if (!photo) return false;
     
     try {
-      startTransition(async () => {
-        await likePhoto(photo.id, 'current-user-id'); // TODO: Získat aktuální ID přihlášeného uživatele
-
-        // Aktualizujeme stav fotografie po lajku
-        setPhoto(prev => {
-          if (!prev) return null;
-          return {
-            ...prev,
-            likes: prev.likes + 1,
-            isLikedByCurrentUser: true
-          };
-        });
-      });
+      const success = await likePhoto(photo.id, userId);
+      if (success) {
+        setPhoto(prev => prev ? { ...prev, likes: prev.likes + 1 } : null);
+      }
+      return success;
     } catch (error) {
-      console.error('Chyba při lajkování fotografie:', error);
+      // Chyba zpracována tiše
+      return false;
     }
   }, [photo]);
-
-  // Funkce pro unlike fotografie
-  const unlikePhotoAction = useCallback(async () => {
-    if (!photo) return;
+  
+  // Funkce pro odlajkování fotografie
+  const handleUnlike = useCallback(async (userId: string) => {
+    if (!photo) return false;
     
     try {
-      startTransition(async () => {
-        await unlikePhoto(photo.id, 'current-user-id'); // TODO: Získat aktuální ID přihlášeného uživatele
-
-        // Aktualizujeme stav fotografie po odlajku
-        setPhoto(prev => {
-          if (!prev) return null;
-          return {
-            ...prev,
-            likes: prev.likes - 1,
-            isLikedByCurrentUser: false
-          };
-        });
-      });
+      const success = await unlikePhoto(photo.id, userId);
+      if (success) {
+        setPhoto(prev => prev ? { ...prev, likes: Math.max(0, prev.likes - 1) } : null);
+      }
+      return success;
     } catch (error) {
-      console.error('Chyba při odlajkování fotografie:', error);
+      // Chyba zpracována tiše
+      return false;
     }
   }, [photo]);
-
+  
   return {
     photo,
-    loading: loading || isPending,
+    loading,
     error,
     refreshPhoto: fetchPhoto,
-    likePhotoAction,
-    unlikePhotoAction
+    likePhoto: handleLike,
+    unlikePhoto: handleUnlike
   };
 } 

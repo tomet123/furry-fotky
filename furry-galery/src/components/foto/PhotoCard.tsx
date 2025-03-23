@@ -1,10 +1,20 @@
 'use client';
 
-import React, { useState, useEffect } from 'react';
-import { Card, CardMedia, CardContent, Typography, Box, Avatar, Chip, Stack } from '@mui/material';
+import React, { useState, useCallback, useEffect } from 'react';
+import { Card, CardMedia, CardContent, Typography, Box, Avatar, Chip, Stack, IconButton } from '@mui/material';
 import FavoriteBorderIcon from '@mui/icons-material/FavoriteBorder';
-import { Photo } from '@/app/actions/photos';
+import FavoriteIcon from '@mui/icons-material/Favorite';
+import { Photo, likePhoto, unlikePhoto } from '@/app/actions/photos';
 import { useRouter, usePathname, useSearchParams } from 'next/navigation';
+import { useSession } from 'next-auth/react';
+import { keyframes } from '@mui/system';
+
+// Animace srdce při lajkování
+const pulseAnimation = keyframes`
+  0% { transform: scale(1); }
+  50% { transform: scale(1.3); }
+  100% { transform: scale(1); }
+`;
 
 // Styly pro kartu fotografii
 const cardStyle = {
@@ -28,10 +38,30 @@ interface PhotoCardProps {
   userId?: string;  // Přidáno userId pro like/unlike operace
 }
 
-export const PhotoCard: React.FC<PhotoCardProps> = ({ photo, onClick, userId = '1' }) => {
+export const PhotoCard: React.FC<PhotoCardProps> = ({ photo, onClick }) => {
   const router = useRouter();
   const pathname = usePathname();
   const searchParams = useSearchParams();
+  const { data: session } = useSession();
+  const [isLiked, setIsLiked] = useState<boolean>(photo.isLikedByCurrentUser || false);
+  const [likeCount, setLikeCount] = useState<number>(photo.likes || 0);
+  const [isLikeProcessing, setIsLikeProcessing] = useState<boolean>(false);
+  const [isAnimating, setIsAnimating] = useState<boolean>(false);
+
+  // Aktualizovat stav při změně props
+  useEffect(() => {
+    setIsLiked(photo.isLikedByCurrentUser || false);
+    setLikeCount(photo.likes || 0);
+  }, [photo.isLikedByCurrentUser, photo.likes]);
+  
+  // Animace, když se změní stav lajku
+  useEffect(() => {
+    if (isLiked) {
+      setIsAnimating(true);
+      const timer = setTimeout(() => setIsAnimating(false), 500);
+      return () => clearTimeout(timer);
+    }
+  }, [isLiked]);
 
   const handleCardClick = () => {
     if (onClick) {
@@ -43,6 +73,41 @@ export const PhotoCard: React.FC<PhotoCardProps> = ({ photo, onClick, userId = '
       router.replace(`${pathname}?${newParams.toString()}`, { scroll: false });
     }
   };
+
+  const handleLikeClick = useCallback(async (e: React.MouseEvent) => {
+    // Zastavit propagaci kliknutí, aby se neotevřel detail fotky
+    e.stopPropagation();
+
+    // Kontrola, zda je uživatel přihlášen
+    if (!session?.user?.id) return;
+
+    // Zabránit vícenásobnému kliknutí během zpracování
+    if (isLikeProcessing) return;
+    setIsLikeProcessing(true);
+
+    try {
+      // Optimistický update - okamžitě aktualizovat UI
+      const wasLiked = isLiked;
+      setIsLiked(!wasLiked);
+      setLikeCount(prev => wasLiked ? Math.max(0, prev - 1) : prev + 1);
+
+      if (wasLiked) {
+        // Odlajkování fotky
+        await unlikePhoto(photo.id, session.user.id);
+      } else {
+        // Lajkování fotky
+        await likePhoto(photo.id, session.user.id);
+      }
+    } catch (error) {
+      console.error('Chyba při zpracování lajku:', error);
+      
+      // Pokud se operace nezdaří, vrátit původní stav
+      setIsLiked(prev => !prev);
+      setLikeCount(prev => isLiked ? prev + 1 : Math.max(0, prev - 1));
+    } finally {
+      setIsLikeProcessing(false);
+    }
+  }, [isLiked, photo.id, session, isLikeProcessing]);
 
   return (
     <Card 
@@ -78,11 +143,37 @@ export const PhotoCard: React.FC<PhotoCardProps> = ({ photo, onClick, userId = '
               {photo.photographer}
             </Typography>
           </Box>
-          {/* Počet liků */}
-          <Box sx={{ display: 'flex', alignItems: 'center', gap: 0.5 }}>
-            <FavoriteBorderIcon fontSize="small" color="action" />
-            <Typography variant="caption" color="text.secondary">
-              {photo.likes}
+          {/* Počet liků s tlačítkem pro lajkování - stabilní šířka */}
+          <Box sx={{ 
+            display: 'flex', 
+            alignItems: 'center', 
+            gap: 0.5,
+            minWidth: 42,    // Stabilní šířka pro oblast lajků
+            justifyContent: 'flex-end'
+          }}>
+            {session?.user ? (
+              <IconButton 
+                size="small" 
+                onClick={handleLikeClick}
+                color={isLiked ? "primary" : "default"}
+                disabled={isLikeProcessing}
+                sx={{ 
+                  p: 0.5,
+                  animation: isAnimating ? `${pulseAnimation} 0.5s ease-in-out` : 'none',
+                  transition: 'color 0.3s ease-in-out'
+                }}
+              >
+                {isLiked ? <FavoriteIcon fontSize="small" /> : <FavoriteBorderIcon fontSize="small" />}
+              </IconButton>
+            ) : (
+              <FavoriteBorderIcon fontSize="small" color="action" />
+            )}
+            <Typography 
+              variant="caption" 
+              color="text.secondary"
+              sx={{ minWidth: 14, textAlign: 'center' }}
+            >
+              {likeCount}
             </Typography>
           </Box>
         </Box>

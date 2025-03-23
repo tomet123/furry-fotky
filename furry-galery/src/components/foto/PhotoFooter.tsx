@@ -2,6 +2,7 @@
 
 import { Box, Typography, Avatar, Stack, Chip, IconButton, Tooltip } from '@mui/material';
 import { Photo } from '@/app/actions/photos';
+import styles from './PhotoFooter.module.css';
 
 // Velikost avataru
 const SMALL_AVATAR_SIZE = 32;
@@ -91,27 +92,12 @@ export const PhotoFooter = ({
   };
   
   return (
-    <Box sx={footerStyle}>
-      <Box sx={{ 
-        display: 'flex', 
-        alignItems: 'center', 
-        flexWrap: 'wrap',
-        gap: { xs: 1, sm: 2 },
-        justifyContent: 'space-between'
-      }}>
-        {/* Levá strana - fotograf a event */}
-        <Box sx={{
-          display: 'flex',
-          alignItems: 'center',
-          gap: { xs: 1, sm: 2 },
-          flexWrap: 'wrap'
-        }}>
+    <Box className={styles.footer}>
+      <Box className={styles.infoContainer}>
+        {/* Levá strana - fotograf, event a tagy */}
+        <Box className={styles.leftSection}>
           {/* Fotograf */}
-          <Box sx={{ 
-            display: 'flex', 
-            alignItems: 'center',
-            gap: 1
-          }}>
+          <Box className={styles.userInfo}>
             <Avatar 
               src={photo.avatarUrl}
               sx={{ 
@@ -122,69 +108,67 @@ export const PhotoFooter = ({
             >
               {photo.photographer.charAt(0)}
             </Avatar>
-            <Typography variant="body2" fontWeight="medium" sx={{ color: 'white' }}>
+            <Typography variant="body2" className={styles.userName} sx={{ color: 'white' }}>
               {photo.photographer}
             </Typography>
           </Box>
           
+          {/* Oddělovací tečka mezi fotografem a událostí */}
+          {photo.event && <Box className={styles.dotSeparator} />}
+          
+          {/* Event na stejném řádku */}
           {photo.event && (
-            <>
-              <Box sx={dotSeparatorStyle} />
-              
-              {/* Akce */}
+            <Box className={styles.metaInfo} sx={{ display: 'flex', alignItems: 'center' }}>
               <Typography variant="body2" sx={{ color: 'white' }}>
                 {photo.event}
               </Typography>
-            </>
+            </Box>
           )}
-
-          {/* Tagy */}
+          
+          {/* Oddělovací tečka mezi akcí a tagy - samostatně mimo obě komponenty */}
+          {photo.event && photo.tags && photo.tags.length > 0 && (
+            <Box className={styles.dotSeparator} />
+          )}
+          
+          {/* Tagy jako Chip komponenty vedle událostí */}
           {photo.tags && photo.tags.length > 0 && (
-            <>
-              {/* Oddělovač před tagy pro větší obrazovky */}
-              <Box 
-                sx={{ 
-                  ...dotSeparatorStyle,
-                  display: { xs: 'none', sm: 'block' }
-                }} 
-              />
-
-              {/* Tagy pro větší obrazovky */}
-              <Stack 
-                direction="row" 
-                spacing={0.5} 
-                sx={{ 
-                  flexWrap: 'wrap',
-                  gap: 0.5,
-                  display: { xs: 'none', sm: 'flex' }
-                }}
-              >
-                {photo.tags?.slice(0, fullScreen ? maxTags - 2 : maxTags).map((tag: string) => (
-                  <Chip
-                    key={tag}
-                    label={tag}
-                    size="small"
-                    sx={tagChipStyle}
-                  />
-                ))}
-              </Stack>
-            </>
+            <Stack 
+              direction="row" 
+              className={styles.tagContainer}
+              sx={{ 
+                display: 'flex'
+              }}
+            >
+              {photo.tags?.slice(0, fullScreen ? maxTags - 2 : maxTags).map((tag: string) => (
+                <Chip
+                  key={tag}
+                  label={tag}
+                  size="small"
+                  className={styles.tagChip}
+                />
+              ))}
+            </Stack>
           )}
         </Box>
 
-        {/* Pravá strana - tlačítko pro stažení fotografie bez boxu */}
-        <Tooltip title="Stáhnout fotografii">
-          <IconButton
-            onClick={handleDownload}
-            aria-label="stáhnout fotografii"
-            sx={actionButtonStyle}
-            size="small"
-          >
-            <Box component="span" sx={{ fontSize: '1.2rem' }}>
-              ↓
-            </Box>
-          </IconButton>
-        </Tooltip>
+        {/* Pravá strana - pouze tlačítko stahování */}
+        <Box className={styles.rightSection}>
+          {/* Tlačítko pro stažení fotografie */}
+          <Box className={styles.actionButtons}>
+            <Tooltip title="Stáhnout fotografii">
+              <IconButton
+                onClick={handleDownload}
+                aria-label="stáhnout fotografii"
+                className={styles.downloadButton}
+                size="small"
+              >
+                <Box component="span" sx={{ fontSize: '1.2rem' }}>
+                  ↓
+                </Box>
+              </IconButton>
+            </Tooltip>
+          </Box>
+        </Box>
       </Box>
     </Box>
   );

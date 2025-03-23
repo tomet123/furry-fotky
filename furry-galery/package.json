@@ -25,13 +25,16 @@
     "@types/better-sqlite3": "^7.6.12",
     "bcrypt": "^5.1.1",
     "better-sqlite3": "^11.9.1",
+    "date-fns": "^4.1.0",
     "drizzle-kit": "^0.30.5",
     "drizzle-orm": "^0.41.0",
     "nanoid": "^5.1.5",
     "next": "15.2.3",
     "next-auth": "^4.24.11",
     "react": "^19.0.0",
-    "react-dom": "^19.0.0"
+    "react-dom": "^19.0.0",
+    "sharp": "^0.33.5",
+    "zod": "^3.24.2"
   },
   "devDependencies": {
     "@eslint/eslintrc": "^3",
@@ -39,8 +42,11 @@
     "@types/node": "^20",
     "@types/react": "^19",
     "@types/react-dom": "^19",
+    "autoprefixer": "^10.4.21",
+    "critters": "^0.0.23",
     "eslint": "^9",
     "eslint-config-next": "15.2.3",
+    "postcss-preset-env": "^10.1.5",
     "tailwindcss": "^4",
     "tsx": "^4.19.3",
     "typescript": "^5"

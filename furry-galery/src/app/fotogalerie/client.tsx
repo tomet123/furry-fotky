@@ -1,6 +1,6 @@
 'use client';
 
-import React, { useCallback, useEffect } from 'react';
+import React, { useCallback, useEffect, useState } from 'react';
 import { 
   Divider, 
   Stack, 
@@ -32,7 +32,8 @@ import { PhotoGrid } from '@/components/foto/PhotoGrid';
 import { PhotoGalleryProvider, usePhotoGallery } from '@/app/contexts/PhotoGalleryContext';
 import { useRouter, usePathname, useSearchParams } from 'next/navigation';
 import { PhotoDetailModal } from '@/components/foto/PhotoDetailModal';
-import { Photo, likePhoto, unlikePhoto } from '@/app/actions/photos';
+import { Photo, likePhoto, unlikePhoto, getPhotoById } from '@/app/actions/photos';
+import { useSession } from 'next-auth/react';
 
 /**
  * Klientská wrapper komponenta, která obaluje fotogalerii v PhotoGalleryProvider
@@ -282,7 +283,6 @@ function GalleryFilterPanel() {
  * Komponenta pro zobrazení obsahu galerie včetně načítání a zpracování chyb
  */
 function GalleryContent() {
-  // Všechny potřebné údaje získáme z kontextu
   const { 
     photos, 
     loading, 
@@ -290,98 +290,95 @@ function GalleryContent() {
     totalItems, 
     totalPages, 
     currentPage, 
-    setPage,
-    activePhotoId,
-    setActivePhotoId
+    setPage
   } = usePhotoGallery();
-  const router = useRouter();
-  const pathname = usePathname();
-  const searchParams = useSearchParams();
+  const { data: session } = useSession();
   
-  // Aktivní fotka pro modální okno a její index
-  const activePhoto = photos.find(photo => photo.id === activePhotoId);
-  const activePhotoIndex = activePhoto ? photos.findIndex(photo => photo.id === activePhotoId) : -1;
+  // Lokální stav pro řízení zobrazení modálu a aktivní fotky
+  const [activePhoto, setActivePhoto] = useState<Photo | null>(null);
+  const [modalOpen, setModalOpen] = useState<boolean>(false);
+  
+  // Aktivní index fotky pro navigaci
+  const activePhotoIndex = activePhoto ? photos.findIndex(photo => photo.id === activePhoto.id) : -1;
+
+  // Funkce pro přednačtení okolních fotografií pro rychlejší navigaci
+  const prefetchAdjacentPhotos = useCallback((currentIndex: number) => {
+    if (photos.length <= 1 || currentIndex === -1) return;
+    
+    // Funkce pro vytvoření prefetch image elementu
+    const prefetchImage = (photoUrl: string) => {
+      const link = document.createElement('link');
+      link.rel = 'prefetch';
+      link.as = 'image';
+      link.href = photoUrl;
+      document.head.appendChild(link);
+    };
+    
+    // Předchozí fotka
+    const prevIndex = (currentIndex - 1 + photos.length) % photos.length;
+    const prevPhoto = photos[prevIndex];
+    if (prevPhoto) prefetchImage(prevPhoto.imageUrl);
+    
+    // Následující fotka
+    const nextIndex = (currentIndex + 1) % photos.length;
+    const nextPhoto = photos[nextIndex];
+    if (nextPhoto) prefetchImage(nextPhoto.imageUrl);
+  }, [photos]);
+  
+  // Přednačtení fotek při změně aktivní fotky
+  useEffect(() => {
+    if (activePhoto && activePhotoIndex !== -1) {
+      prefetchAdjacentPhotos(activePhotoIndex);
+    }
+  }, [activePhoto, activePhotoIndex, prefetchAdjacentPhotos]);
 
   // Navigace na předchozí fotku
   const handlePrevious = useCallback(() => {
     if (photos.length > 1 && activePhotoIndex !== -1) {
       const newIndex = (activePhotoIndex - 1 + photos.length) % photos.length;
-      const prevPhoto = photos[newIndex];
-      
-      // Pouze aktualizujeme URL, o změnu stavu se postará useEffect
-      const newParams = new URLSearchParams(searchParams.toString());
-      newParams.set('photoId', prevPhoto.id);
-      router.replace(`${pathname}?${newParams.toString()}`, { scroll: false });
+      setActivePhoto(photos[newIndex]);
     }
-  }, [photos, activePhotoIndex, router, pathname, searchParams]);
+  }, [photos, activePhotoIndex]);
 
   // Navigace na další fotku
   const handleNext = useCallback(() => {
     if (photos.length > 1 && activePhotoIndex !== -1) {
       const newIndex = (activePhotoIndex + 1) % photos.length;
-      const nextPhoto = photos[newIndex];
-      
-      // Pouze aktualizujeme URL, o změnu stavu se postará useEffect
-      const newParams = new URLSearchParams(searchParams.toString());
-      newParams.set('photoId', nextPhoto.id);
-      router.replace(`${pathname}?${newParams.toString()}`, { scroll: false });
+      setActivePhoto(photos[newIndex]);
     }
-  }, [photos, activePhotoIndex, router, pathname, searchParams]);
+  }, [photos, activePhotoIndex]);
 
   // Handler pro zavření modálu
   const handleCloseModal = useCallback(() => {
-    // Pouze aktualizujeme URL, o změnu stavu se postará useEffect
-    const newParams = new URLSearchParams(searchParams.toString());
-    newParams.delete('photoId');
-    const newUrl = newParams.toString() ? `${pathname}?${newParams.toString()}` : pathname;
-    router.replace(newUrl, { scroll: false });
-  }, [router, pathname, searchParams]);
+    setModalOpen(false);
+    setActivePhoto(null);
+  }, []);
   
-  // Při změně URL parametrů kontrolujeme, zda se má zobrazit detail fotky
-  useEffect(() => {
-    const photoIdFromUrl = searchParams.get('photoId');
-    
-    // Pokud není žádné photoId v URL, zavřeme modál (pokud je otevřený)
-    if (!photoIdFromUrl) {
-      if (activePhotoId) {
-        setActivePhotoId(null);
-      }
-      return;
-    }
-    
-    // Pokud je photoId v URL a je jiné než aktuální activePhotoId
-    if (photoIdFromUrl !== activePhotoId) {
-      // Ověříme, že fotka existuje v aktuálním seznamu
-      const photoExists = photos.some(photo => photo.id === photoIdFromUrl);
-      if (photoExists) {
-        setActivePhotoId(photoIdFromUrl);
-      } else {
-        // Pokud fotka neexistuje, odstraníme parametr z URL
-        const newParams = new URLSearchParams(searchParams.toString());
-        newParams.delete('photoId');
-        const newUrl = newParams.toString() ? `${pathname}?${newParams.toString()}` : pathname;
-        router.replace(newUrl, { scroll: false });
-      }
-    }
-  }, [searchParams, activePhotoId, photos, setActivePhotoId, router, pathname]);
+  // Handler pro otevření modálu s konkrétní fotkou
+  const handleOpenModal = useCallback((photo: Photo) => {
+    setActivePhoto(photo);
+    setModalOpen(true);
+  }, []);
 
   // Funkce pro lajkování fotografie
   const handleLike = useCallback(async (photo: Photo) => {
     try {
-      await likePhoto(photo.id, 'current-user-id'); // TODO: Získat ID přihlášeného uživatele
+      if (!session?.user?.id) return;
+      await likePhoto(photo.id, session.user.id);
     } catch (error) {
-      console.error('Chyba při lajkování fotografie:', error);
+      // Chyba zpracována tiše
     }
-  }, []);
-
+  }, [session]);
+  
   // Funkce pro odlajkování fotografie
   const handleUnlike = useCallback(async (photo: Photo) => {
     try {
-      await unlikePhoto(photo.id, 'current-user-id'); // TODO: Získat ID přihlášeného uživatele
+      if (!session?.user?.id) return;
+      await unlikePhoto(photo.id, session.user.id);
     } catch (error) {
-      console.error('Chyba při odlajkování fotografie:', error);
+      // Chyba zpracována tiše
     }
-  }, []);
+  }, [session]);
 
   // Zobrazení načítání
   if (loading && photos.length === 0) {
@@ -420,19 +417,24 @@ function GalleryContent() {
   // Zobrazení fotografií
   return (
     <Box sx={{ width: '100%' }}>
-      <PhotoGrid photos={photos} />
+      <PhotoGrid 
+        photos={photos}
+        onLikePhoto={handleLike}
+        onUnlikePhoto={handleUnlike}
+        onPhotoClick={handleOpenModal}
+      />
       
-      {/* Společný modál pro detail fotky */}
-      {activePhoto && (
+      {/* Společný modál pro detail fotky - pouze když je otevřený */}
+      {modalOpen && activePhoto && (
         <PhotoDetailModal
-          open={!!activePhoto}
+          open={modalOpen}
           onClose={handleCloseModal}
           photo={activePhoto}
           allPhotos={photos}
           onLike={handleLike}
           onUnlike={handleUnlike}
-          onPrevious={photos.length > 1 ? handlePrevious : undefined}
-          onNext={photos.length > 1 ? handleNext : undefined}
+          onPrevious={photos.length > 1 && activePhotoIndex !== -1 ? handlePrevious : undefined}
+          onNext={photos.length > 1 && activePhotoIndex !== -1 ? handleNext : undefined}
         />
       )}
       

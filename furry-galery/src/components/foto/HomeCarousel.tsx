@@ -311,7 +311,15 @@ export const HomeCarousel = ({
                     }
                   }}
                 >
-                  <Box component="span" sx={{ fontSize: '2rem' }}>
+                  <Box component="span" sx={{ 
+                    fontSize: '2rem',
+                    display: 'flex',
+                    alignItems: 'center',
+                    justifyContent: 'center',
+                    lineHeight: 1,
+                    position: 'relative',
+                    top: '-1px' 
+                  }}>
                     ‹
                   </Box>
                 </Box>
@@ -350,7 +358,15 @@ export const HomeCarousel = ({
                     }
                   }}
                 >
-                  <Box component="span" sx={{ fontSize: '2rem' }}>
+                  <Box component="span" sx={{ 
+                    fontSize: '2rem',
+                    display: 'flex',
+                    alignItems: 'center',
+                    justifyContent: 'center',
+                    lineHeight: 1,
+                    position: 'relative',
+                    top: '-1px' 
+                  }}>
                     ›
                   </Box>
                 </Box>

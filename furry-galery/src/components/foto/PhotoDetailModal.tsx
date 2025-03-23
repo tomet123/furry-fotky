@@ -1,6 +1,6 @@
 'use client';
 
-import React, { useState, useEffect, useTransition } from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
 import { 
   Dialog, 
   Box, 
@@ -12,14 +12,30 @@ import {
   useMediaQuery, 
   useTheme,
   Button,
-  Tooltip
+  Tooltip,
+  Fade
 } from '@mui/material';
 import CloseIcon from '@mui/icons-material/Close';
 import FavoriteIcon from '@mui/icons-material/Favorite';
 import FavoriteBorderIcon from '@mui/icons-material/FavoriteBorder';
+import DownloadIcon from '@mui/icons-material/Download';
+import NavigateNextIcon from '@mui/icons-material/NavigateNext';
+import NavigateBeforeIcon from '@mui/icons-material/NavigateBefore';
+import AspectRatioIcon from '@mui/icons-material/AspectRatio';
 import { Photo } from '@/app/actions/photos';
 import { getPhotoById } from '@/app/actions/photos';
 import { PhotoFooter } from './PhotoFooter';
+import { formatDistanceToNow } from 'date-fns';
+import { cs } from 'date-fns/locale';
+import { keyframes } from '@mui/system';
+import styles from './PhotoDetailModal.module.css';
+
+// Animace srdce při lajkování
+const pulseAnimation = keyframes`
+  0% { transform: scale(1); }
+  50% { transform: scale(1.3); }
+  100% { transform: scale(1); }
+`;
 
 // Stylové konstanty
 const MAX_WIDTH_PERCENTAGE = 0.75; // Maximální šířka jako procento viewportu
@@ -184,6 +200,7 @@ export interface PhotoDetailModalProps {
   onPrevious?: () => void;
   onLike?: (photo: Photo) => Promise<void>;
   onUnlike?: (photo: Photo) => Promise<void>;
+  isLoading?: boolean;
 }
 
 export const PhotoDetailModal: React.FC<PhotoDetailModalProps> = ({
@@ -194,7 +211,8 @@ export const PhotoDetailModal: React.FC<PhotoDetailModalProps> = ({
   onNext,
   onPrevious,
   onLike,
-  onUnlike
+  onUnlike,
+  isLoading = false
 }) => {
   const theme = useTheme();
   const fullScreen = useMediaQuery(theme.breakpoints.down('md'));
@@ -205,19 +223,27 @@ export const PhotoDetailModal: React.FC<PhotoDetailModalProps> = ({
   const [likeInProgress, setLikeInProgress] = useState(false);
   const [loading, setLoading] = useState(true);
   const [imgDimensions, setImgDimensions] = useState({ width: 0, height: 0 });
+  const [isAnimating, setIsAnimating] = useState<boolean>(false);
   const windowSize = useWindowSize();
   
   // Při změně fotky aktualizujeme stav
   useEffect(() => {
     if (photo) {
-      // Zde by měla být správná logika pro zjištění, zda uživatel už fotografii olajkoval
-      // Protože nemáme vlastnost 'liked' přímo v objektu Photo, 
-      // předpokládáme, že tato informace by měla být zjištěna jinak
-      setLiked(false); // Výchozí hodnota, měla by být nahrazena skutečnou logikou
+      // Nastavíme na základě vlastnosti isLikedByCurrentUser z objektu Photo
+      setLiked(photo.isLikedByCurrentUser || false);
       setLikeCount(photo.likes || 0);
       setLoading(true);
     }
   }, [photo]);
+  
+  // Animace, když se změní stav lajku
+  useEffect(() => {
+    if (liked) {
+      setIsAnimating(true);
+      const timer = setTimeout(() => setIsAnimating(false), 500);
+      return () => clearTimeout(timer);
+    }
+  }, [liked]);
 
   const currentPhoto = photo;
 
@@ -231,21 +257,26 @@ export const PhotoDetailModal: React.FC<PhotoDetailModalProps> = ({
     setLikeInProgress(true);
     
     try {
-      if (liked) {
+      // Optimistický update - okamžitě aktualizovat UI
+      const wasLiked = liked;
+      setLiked(!wasLiked);
+      setLikeCount(prev => wasLiked ? Math.max(0, prev - 1) : prev + 1);
+      
+      if (wasLiked) {
         if (onUnlike) {
           await onUnlike(currentPhoto);
-          setLiked(false);
-          setLikeCount(prev => Math.max(0, prev - 1));
         }
       } else {
         if (onLike) {
           await onLike(currentPhoto);
-          setLiked(true);
-          setLikeCount(prev => prev + 1);
         }
       }
     } catch (error) {
       console.error('Error liking/unliking photo:', error);
+      
+      // Pokud se operace nezdaří, vrátit původní stav
+      setLiked(prev => !prev);
+      setLikeCount(prev => liked ? prev + 1 : Math.max(0, prev - 1));
     } finally {
       setLikeInProgress(false);
     }
@@ -323,22 +354,27 @@ export const PhotoDetailModal: React.FC<PhotoDetailModalProps> = ({
           p: 0,
           borderRadius: fullScreen ? 0 : 2,
           overflow: 'hidden',
+          position: 'relative'
         }
       }}
     >
-      <Box sx={photoContainerStyle}>
-        {loading && (
-          <Box sx={{ 
-            display: 'flex', 
-            justifyContent: 'center',
-            alignItems: 'center',
-            width: '100%',
-            height: '100%'
-          }}>
+      {/* Zavírací tlačítko v pravém horním rohu */}
+      <IconButton
+        onClick={onClose}
+        aria-label="zavřít"
+        className={styles.closeButton}
+        size="medium"
+      >
+        <CloseIcon />
+      </IconButton>
+      
+      <Box className={styles.photoContainer} sx={{ position: 'relative' }}>
+        {(loading || isLoading) && (
+          <Box className={styles.loadingContainer}>
             <Typography color="white">Načítání...</Typography>
           </Box>
         )}
-        
+      
         <Box
           component="img"
           src={currentPhoto.imageUrl}
@@ -349,77 +385,109 @@ export const PhotoDetailModal: React.FC<PhotoDetailModalProps> = ({
             width: fullScreen ? '100%' : calculateImageSize().width,
             height: fullScreen ? '100%' : calculateImageSize().height,
             objectFit: fitMode,
-            visibility: loading ? 'hidden' : 'visible',
-            transition: 'all 0.3s ease',
+            visibility: (loading || isLoading) ? 'hidden' : 'visible',
           }}
         />
         
         {/* Kontrolní panel v horní části */}
-        <Box sx={headerStyle}>
+        <Box className={styles.header}>
           {/* Levá strana - lajky a ovládací prvky */}
           <Box sx={{
             display: 'flex',
-            p: 2,
             gap: 1
           }}>
             {/* Lajky */}
             <Box 
-              sx={{
-                ...likeBoxStyle,
-                color: liked ? 'primary.main' : 'white',
-              }}
               onClick={handleLikeClick}
+              sx={{
+                color: liked ? 'primary.main' : 'white',
+                display: 'flex', 
+                alignItems: 'center',
+                backgroundColor: 'rgba(0, 0, 0, 0.3)',
+                borderRadius: '8px',
+                padding: '4px 12px',
+                cursor: 'pointer',
+                '&:hover': {
+                  backgroundColor: 'rgba(0, 0, 0, 0.5)'
+                }
+              }}
             >
-              {liked ? (
-                <FavoriteIcon sx={{ fontSize: 20, color: '#ff6b81' }} />
-              ) : (
-                <FavoriteBorderIcon sx={{ fontSize: 20 }} />
-              )}
-              <Typography variant="body2">
+              <IconButton 
+                onClick={(e) => {
+                  e.stopPropagation();
+                  handleLikeClick();
+                }} 
+                disabled={likeInProgress}
+                sx={{ 
+                  color: liked ? 'primary.main' : 'white',
+                  animation: isAnimating ? `${pulseAnimation} 0.5s ease-in-out` : 'none',
+                  transition: 'color 0.3s ease-in-out',
+                  padding: '4px'
+                }}
+                size="small"
+              >
+                {liked ? <FavoriteIcon /> : <FavoriteBorderIcon />}
+              </IconButton>
+              <Typography color="white" variant="body2" sx={{ ml: 0.5 }}>
                 {likeCount}
               </Typography>
             </Box>
             
             {/* Tlačítko pro změnu režimu zobrazení */}
-            <Box sx={controlBoxStyle}>
+            <Box 
+              onClick={toggleFitMode}
+              sx={{
+                display: 'flex', 
+                alignItems: 'center',
+                backgroundColor: 'rgba(0, 0, 0, 0.3)',
+                borderRadius: '8px',
+                padding: '4px 12px',
+                cursor: 'pointer',
+                '&:hover': {
+                  backgroundColor: 'rgba(0, 0, 0, 0.5)'
+                }
+              }}
+            >
               <IconButton
-                onClick={toggleFitMode}
+                onClick={(e) => {
+                  e.stopPropagation();
+                  toggleFitMode();
+                }}
                 aria-label="změnit režim zobrazení"
-                sx={actionButtonStyle}
                 size="small"
+                sx={{ 
+                  color: 'white',
+                  padding: '4px'
+                }}
               >
                 <Box component="span" sx={{ fontSize: '1.2rem' }}>
                   {fitMode === 'contain' ? '⤢' : '◱'}
                 </Box>
               </IconButton>
+              <Typography color="white" variant="body2" sx={{ ml: 0.5 }}>
+                {fitMode === 'contain' ? 'Celý' : 'Vyplnit'}
+              </Typography>
             </Box>
           </Box>
-          
-          {/* Pravá strana - zavírací tlačítko */}
-          <IconButton
-            onClick={onClose}
-            aria-label="zavřít"
-            sx={{
-              color: 'white',
-              ...darkOverlayStyle,
-              ...darkOverlayHoverStyle
-            }}
-            size="small"
-          >
-            <CloseIcon fontSize="small" />
-          </IconButton>
         </Box>
         
         {/* Navigační tlačítka na bocích */}
-        {onPrevious && (
+        {onPrevious && !loading && (
           <Box sx={{ 
-            ...navContainerStyle,
+            position: 'absolute',
+            top: '50%',
+            transform: 'translateY(-50%)',
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'center',
+            p: 2,
+            zIndex: 10,
             left: 0,
           }}>
             <IconButton
               onClick={onPrevious}
               aria-label="předchozí fotografie"
-              sx={navButtonStyle}
+              className={styles.navButton}
             >
               <Box component="span" sx={{ fontSize: '2rem' }}>
                 ‹
@@ -428,15 +496,22 @@ export const PhotoDetailModal: React.FC<PhotoDetailModalProps> = ({
           </Box>
         )}
         
-        {onNext && (
+        {onNext && !loading && (
           <Box sx={{ 
-            ...navContainerStyle,
+            position: 'absolute',
+            top: '50%',
+            transform: 'translateY(-50%)',
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'center',
+            p: 2,
+            zIndex: 10,
             right: 0,
           }}>
             <IconButton
               onClick={onNext}
               aria-label="další fotografie"
-              sx={navButtonStyle}
+              className={styles.navButton}
             >
               <Box component="span" sx={{ fontSize: '2rem' }}>
                 ›

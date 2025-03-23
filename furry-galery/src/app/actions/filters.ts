@@ -23,48 +23,12 @@ type Tag = {
   name: string;
 };
 
-async function dumpTableCounts() {
-  try {
-    // Získání počtu záznamů v jednotlivých tabulkách pro diagnostiku
-    const [
-      userCount,
-      photographerCount,
-      eventsCount,
-      tagsCount,
-      photosCount,
-      photoTagsCount
-    ] = await Promise.all([
-      db.select({ count: count() }).from(user),
-      db.select({ count: count() }).from(photographersTable),
-      db.select({ count: count() }).from(events),
-      db.select({ count: count() }).from(tagsTable),
-      db.select({ count: count() }).from(photos),
-      db.select({ count: count() }).from(photoTags)
-    ]);
-
-    console.log('Diagnostika - počty záznamů v tabulkách:');
-    console.log('- Uživatelé:', userCount[0]?.count || 0);
-    console.log('- Fotografové:', photographerCount[0]?.count || 0);
-    console.log('- Události:', eventsCount[0]?.count || 0);
-    console.log('- Tagy:', tagsCount[0]?.count || 0);
-    console.log('- Fotografie:', photosCount[0]?.count || 0);
-    console.log('- Propojení foto-tagy:', photoTagsCount[0]?.count || 0);
-  } catch (error) {
-    console.error('Chyba při získávání diagnostických dat:', error);
-  }
-}
-
 /**
  * Načte fotografy z databáze s možností filtrování podle jména
  * Vrací až 10 fotografů s nejvyšším počtem fotografií
  */
-export async function getPhotographers(search: string = '', limit: number = 10) {
+export async function getPhotographers(search: string = '', limit: number = 30) {
   try {
-    console.log('getPhotographers - start');
-    
-    // Získání diagnostických dat
-    await dumpTableCounts();
-    
     // Získáme všechny fotografy s počtem jejich fotografií a seřadíme podle počtu fotografií (sestupně)
     const result = await db
       .select({
@@ -83,11 +47,6 @@ export async function getPhotographers(search: string = '', limit: number = 10) 
       .orderBy(desc(sql`photoCount`), asc(user.username))
       .limit(limit);
     
-    console.log(`getPhotographers - found ${result.length} photographers`);
-    if (result.length > 0) {
-      console.log('První fotograf:', result[0]);
-    }
-    
     // Filtrujeme prázdné hodnoty a vrátíme uživatelská jména jako pole stringů
     const photographers = result
       .filter(photographer => photographer.username !== null && photographer.username !== undefined)
@@ -95,7 +54,6 @@ export async function getPhotographers(search: string = '', limit: number = 10) 
     
     return photographers.length > 0 ? photographers : ['Neznámý fotograf'];
   } catch (error) {
-    console.error('Chyba při načítání fotografů:', error);
     return ['Neznámý fotograf'];
   }
 }
@@ -104,25 +62,8 @@ export async function getPhotographers(search: string = '', limit: number = 10) 
  * Načte události z databáze s možností filtrování podle názvu
  * Vrací nejnovější události seřazené podle data konání
  */
-export async function getEvents(search: string = '', limit: number = 10) {
+export async function getEvents(search: string = '', limit: number = 30) {
   try {
-    console.log('getEvents - start');
-    
-    // Nejprve zkusíme získat samotné události bez joinů
-    const eventsData = await db
-      .select({
-        id: events.id,
-        name: events.name,
-        date: events.date
-      })
-      .from(events)
-      .limit(10);
-    
-    console.log('Diagnostika - události bez joinů:', eventsData.length > 0 ? 'Nalezeno' : 'Nenalezeno');
-    if (eventsData.length > 0) {
-      console.log('První událost:', eventsData[0]);
-    }
-    
     // Získáme všechny události a seřadíme je podle data (nejnovější první)
     const result = await db
       .select({
@@ -139,13 +80,10 @@ export async function getEvents(search: string = '', limit: number = 10) {
       .orderBy(desc(events.date), asc(events.name))
       .limit(limit);
     
-    console.log(`getEvents - found ${result.length} events`);
-    
     // Vrátíme pouze názvy akcí jako pole stringů
     const eventNames = result.map(event => event.name);
     return eventNames.length > 0 ? eventNames : ['Žádné události'];
   } catch (error) {
-    console.error('Chyba při načítání akcí:', error);
     return ['Žádné události'];
   }
 }
@@ -155,22 +93,6 @@ export async function getEvents(search: string = '', limit: number = 10) {
  */
 export async function getTags(search: string = '', limit: number = 30) {
   try {
-    console.log('getTags - start');
-    
-    // Nejprve zkusíme získat samotné tagy bez joinů
-    const tagsData = await db
-      .select({
-        id: tagsTable.id,
-        name: tagsTable.name,
-      })
-      .from(tagsTable)
-      .limit(10);
-    
-    console.log('Diagnostika - tagy bez joinů:', tagsData.length > 0 ? 'Nalezeno' : 'Nenalezeno');
-    if (tagsData.length > 0) {
-      console.log('První tag:', tagsData[0]);
-    }
-    
     // Získáme všechny tagy s počtem jejich použití a seřadíme podle popularity
     const result = await db
       .select({
@@ -187,8 +109,6 @@ export async function getTags(search: string = '', limit: number = 30) {
       .orderBy(desc(sql`usage`), asc(tagsTable.name))
       .limit(limit);
     
-    console.log(`getTags - found ${result.length} tags`);
-    
     // Filtrujeme prázdné hodnoty a vrátíme názvy tagů jako pole stringů
     const tagNames = result
       .filter(tag => tag.name !== null && tag.name !== undefined)
@@ -196,7 +116,6 @@ export async function getTags(search: string = '', limit: number = 30) {
     
     return tagNames.length > 0 ? tagNames : ['Žádné tagy'];
   } catch (error) {
-    console.error('Chyba při načítání tagů:', error);
     return ['Žádné tagy'];
   }
 } 
