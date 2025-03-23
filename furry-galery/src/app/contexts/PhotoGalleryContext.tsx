@@ -92,6 +92,11 @@ export function PhotoGalleryProvider({ children }: { children: React.ReactNode }
     timestamp: number
   }>>({});
 
+  // Debug log pro sledování filtrů
+  useEffect(() => {
+    console.log('PhotoGalleryContext filters:', filters);
+  }, [filters]);
+
   // Funkce pro načtení fotografů s vyhledáváním - optimalizovaná
   const searchPhotographers = useCallback(async (search: string = '') => {
     setLoadingFilterOptions(true);

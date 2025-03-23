@@ -56,6 +56,73 @@ export async function getPhotos({
     // Připravíme podmínky pro filtrování
     const conditions: SQL<unknown>[] = [];
 
+    // Fulltextové vyhledávání
+    if (query && query.trim()) {
+      // Pro fulltextové vyhledávání budeme potřebovat získat data ze všech souvisejících tabulek
+      // a pak filtrovat podle shody, protože nemůžeme přímo hledat v cizích klíčích
+      
+      // Najdeme fotografy, jejichž jména obsahují hledaný výraz
+      const photographersWithQuery = await db
+        .select({ id: photographers.id })
+        .from(photographers)
+        .innerJoin(user, eq(photographers.userId, user.id))
+        .where(like(user.username, `%${query.trim()}%`));
+      
+      // Najdeme události, jejichž názvy obsahují hledaný výraz
+      const eventsWithQuery = await db
+        .select({ id: events.id })
+        .from(events)
+        .where(like(events.name, `%${query.trim()}%`));
+      
+      // Najdeme tagy, jejichž názvy obsahují hledaný výraz
+      const tagsWithQuery = await db
+        .select({ id: tags.id })
+        .from(tags)
+        .where(like(tags.name, `%${query.trim()}%`));
+      
+      // Fotografy
+      const photosByPhotographer = photographersWithQuery.length > 0 
+        ? inArray(photos.photographerId, photographersWithQuery.map(p => p.id))
+        : null;
+      
+      // Události
+      const photosByEvent = eventsWithQuery.length > 0
+        ? inArray(photos.eventId, eventsWithQuery.map(e => e.id))
+        : null;
+      
+      // Tagy - najdeme ID fotografií s odpovídajícími tagy
+      let photosByTags = null;
+      if (tagsWithQuery.length > 0) {
+        const tagIds = tagsWithQuery.map(t => t.id);
+        const photosWithTags = await db
+          .select({ photoId: photoTags.photoId })
+          .from(photoTags)
+          .where(inArray(photoTags.tagId, tagIds));
+        
+        if (photosWithTags.length > 0) {
+          photosByTags = inArray(photos.id, [...new Set(photosWithTags.map(p => p.photoId))]);
+        }
+      }
+      
+      // Spojíme podmínky s OR (fotky, které odpovídají alespoň jedné z podmínek)
+      const queryConditions = [
+        photosByPhotographer,
+        photosByEvent,
+        photosByTags
+      ].filter((condition): condition is SQL<unknown> => condition !== null);
+      
+      if (queryConditions.length > 0) {
+        conditions.push(queryConditions.length === 1 ? queryConditions[0] : or(...queryConditions));
+      } else {
+        // Pokud nebyly nalezeny žádné záznamy odpovídající dotazu, vrátíme prázdný výsledek
+        return {
+          photos: [],
+          totalItems: 0,
+          totalPages: 0
+        };
+      }
+    }
+
     // Filtrování pouze oblíbených fotografií
     if (onlyLiked && userId) {
       // Najdeme ID fotografií, které uživatel označil jako oblíbené
