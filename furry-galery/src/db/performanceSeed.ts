@@ -20,16 +20,16 @@ console.log('🚀 Začínám performance seed databáze...');
 
 // Nastavení počtu generovaných záznamů (výchozí hodnoty)
 const CONFIG = {
-  USERS: 300,            // Celkový počet uživatelů
-  PHOTOGRAPHERS: 40,     // Počet fotografů (podmnožina uživatelů)
-  ORGANIZERS: 20,        // Počet organizátorů (podmnožina uživatelů)
-  EVENTS: 100,           // Počet akcí
-  TAGS: 50,              // Počet tagů
-  PHOTOS: 2000,          // Počet fotografií
+  USERS: 500,            // Celkový počet uživatelů
+  PHOTOGRAPHERS: 100,     // Počet fotografů (podmnožina uživatelů)
+  ORGANIZERS: 50,        // Počet organizátorů (podmnožina uživatelů)
+  EVENTS: 500,           // Počet akcí
+  TAGS: 30,              // Počet tagů
+  PHOTOS: 5000,          // Počet fotografií
   DOWNLOAD_IMAGES: 15,   // Počet obrázků ke stažení (ostatní budou recyklované)
-  LIKES_PER_PHOTO: 20,   // Maximální počet lajků na fotografii
+  LIKES_PER_PHOTO: 200,   // Maximální počet lajků na fotografii
   TAGS_PER_PHOTO: 5,     // Maximální počet tagů na fotografii
-  BATCH_SIZE: 100        // Velikost dávky pro hromadné vkládání
+  BATCH_SIZE: 500        // Velikost dávky pro hromadné vkládání
 };
 
 // Funkce pro vytvoření hashe hesla pomocí bcrypt
@@ -251,9 +251,6 @@ async function generateUsers(count: number, avatars: any[]) {
       const username = faker.internet.userName({ firstName, lastName }).replace(/[^a-zA-Z0-9]/g, '');
       const email = faker.internet.email({ firstName, lastName });
       
-      // Přiřadíme náhodný avatar (pokud jsou dostupné)
-      const hasAvatar = avatars.length > 0 && Math.random() > 0.3;
-      
       const newUser = {
         id: createId('user_'),
         name: `${firstName} ${lastName}`,
@@ -267,27 +264,32 @@ async function generateUsers(count: number, avatars: any[]) {
       
       batch.push(newUser);
       createdUsers.push(newUser);
-      
-      // Pokud máme avatar, vytvoříme nový záznam avataru s ID uživatele
-      if (hasAvatar) {
-        const randomAvatarIndex = Math.floor(Math.random() * avatars.length);
-        const avatar = avatars[randomAvatarIndex];
-        
-        await db.insert(storageProfilePictures).values({
-          id: createId('avatar_'),
-          fileData: avatar.fileData,
-          thumbnailData: avatar.thumbnailData,
-          contentType: avatar.contentType,
-          originalName: avatar.originalName,
-          userId: newUser.id,
-          createdAt: newUser.createdAt
-        });
-      }
     }
     
     if (batch.length > 0) {
       await db.insert(user).values(batch);
       console.log(`Vloženo ${batch.length} uživatelů (celkem ${i + batch.length}/${count})`);
+      
+      // Přiřadíme náhodné avatary pro vloženou dávku uživatelů
+      if (avatars.length > 0) {
+        for (const newUser of batch) {
+          // 70% uživatelů bude mít avatar
+          if (Math.random() > 0.3) {
+            const randomAvatarIndex = Math.floor(Math.random() * avatars.length);
+            const avatar = avatars[randomAvatarIndex];
+            
+            await db.insert(storageProfilePictures).values({
+              id: createId('avatar_'),
+              fileData: avatar.fileData,
+              thumbnailData: avatar.thumbnailData,
+              contentType: avatar.contentType,
+              originalName: avatar.originalName,
+              userId: newUser.id,
+              createdAt: newUser.createdAt
+            });
+          }
+        }
+      }
     }
   }
   
@@ -449,7 +451,7 @@ async function generateEvents(organizers: any[], count: number) {
     for (let j = i; j < batchEnd; j++) {
       const city = cities[Math.floor(Math.random() * cities.length)];
       const eventType = eventTypes[Math.floor(Math.random() * eventTypes.length)];
-      const date = faker.date.between({ from: '2022-01-01', to: '2024-12-31' }).toISOString().split('T')[0];
+      const date = faker.date.between({ from: '2022-01-01', to: '2026-12-31' }).toISOString().split('T')[0];
       const randomOrganizerIndex = Math.floor(Math.random() * organizers.length);
       
       const event = {

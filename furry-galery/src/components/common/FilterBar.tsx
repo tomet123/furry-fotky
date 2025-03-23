@@ -204,12 +204,6 @@ export function FilterBar({
     }
   };
   
-  // Funkce pro vymazání fotografa
-  const handleClearPhotographer = () => {
-    onUpdateFilters({ photographer: null, page: 1 });
-    setPhotographerInput('');
-  };
-  
   // Funkce pro změnu události
   const handleEventChange = (_event: React.SyntheticEvent, newValue: string | null) => {
     onUpdateFilters({ event: newValue, page: 1 });
@@ -223,12 +217,6 @@ export function FilterBar({
     }
   };
   
-  // Funkce pro vymazání události
-  const handleClearEvent = () => {
-    onUpdateFilters({ event: null, page: 1 });
-    setEventInput('');
-  };
-  
   // Funkce pro změnu tagů
   const handleTagChange = (_event: React.SyntheticEvent, newValue: string[]) => {
     onUpdateFilters({ tags: newValue, page: 1 });
@@ -240,6 +228,18 @@ export function FilterBar({
     if (onTagSearch) {
       onTagSearch(value);
     }
+  };
+  
+  // Funkce pro vymazání fotografa
+  const handleClearPhotographer = () => {
+    onUpdateFilters({ photographer: null, page: 1 });
+    setPhotographerInput('');
+  };
+  
+  // Funkce pro vymazání události
+  const handleClearEvent = () => {
+    onUpdateFilters({ event: null, page: 1 });
+    setEventInput('');
   };
   
   // Funkce pro vymazání tagů
@@ -395,15 +395,6 @@ export function FilterBar({
                         ...params.InputProps,
                         endAdornment: (
                           <>
-                            {filters.photographer && (
-                              <IconButton 
-                                size="small" 
-                                onClick={handleClearPhotographer}
-                                sx={{ mr: 0.5 }}
-                              >
-                                <ClearIcon fontSize="small" />
-                              </IconButton>
-                            )}
                             {loadingPhotographers ? <CircularProgress color="inherit" size={20} /> : null}
                             {params.InputProps.endAdornment}
                           </>
@@ -442,15 +433,6 @@ export function FilterBar({
                         ...params.InputProps,
                         endAdornment: (
                           <>
-                            {filters.event && (
-                              <IconButton 
-                                size="small" 
-                                onClick={handleClearEvent}
-                                sx={{ mr: 0.5 }}
-                              >
-                                <ClearIcon fontSize="small" />
-                              </IconButton>
-                            )}
                             {loadingEvents ? <CircularProgress color="inherit" size={20} /> : null}
                             {params.InputProps.endAdornment}
                           </>
@@ -490,15 +472,6 @@ export function FilterBar({
                         ...params.InputProps,
                         endAdornment: (
                           <>
-                            {filters.tags && filters.tags.length > 0 && (
-                              <IconButton 
-                                size="small" 
-                                onClick={handleClearTags}
-                                sx={{ mr: 0.5 }}
-                              >
-                                <ClearIcon fontSize="small" />
-                              </IconButton>
-                            )}
                             {loadingTags ? <CircularProgress color="inherit" size={20} /> : null}
                             {params.InputProps.endAdornment}
                           </>

@@ -10,7 +10,11 @@
     "db:generate": "drizzle-kit generate:sqlite",
     "db:migrate": "tsx src/db/migrate.ts",
     "db:studio": "drizzle-kit studio",
-    "db:seed": "tsx src/db/seed.ts"
+    "db:seed": "tsx src/db/seed.ts",
+    "seed": "tsx src/db/seed.ts",
+    "performance-seed": "tsx src/db/performanceSeed.ts",
+    "performance-seed:light": "tsx src/db/performanceSeed.ts light",
+    "migrate": "tsx src/db/migrate.ts"
   },
   "dependencies": {
     "@auth/drizzle-adapter": "^1.8.0",

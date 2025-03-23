@@ -269,6 +269,15 @@ async function seedDatabase() {
       { name: 'Charity PawsA', description: 'Charitativní akce na podporu zvířecích útulků', location: 'České Budějovice', date: '2023-11-15' },
       { name: 'Winter FurConA', description: 'Zimní furry setkání', location: 'Liberec', date: '2023-12-25' },
       { name: 'Fursuit WalkA', description: 'Procházka v kostýmech po centru města', location: 'Praha', date: '2023-07-01' },
+      // Přidáváme budoucí události (rok 2025-2026)
+      { name: 'Furmeet Praha 2025', description: 'Pravidelné setkání furry komunity v Praze', location: 'Praha', date: '2025-06-15' },
+      { name: 'Czech Furry Con 2025', description: 'Největší furry konvence v Česku', location: 'Brno', date: '2025-09-20' },
+      { name: 'FurFest 2025', description: 'Mezinárodní furry festival s množstvím zahraničních hostů', location: 'Praha', date: '2025-08-12' },
+      { name: 'Fotomeet Léto 2025', description: 'Letní setkání zaměřené na fotografování v přírodě', location: 'Šumava', date: '2025-07-18' },
+      { name: 'Winter FurCon 2025', description: 'Zimní furry setkání na horách', location: 'Špindlerův Mlýn', date: '2025-12-05' },
+      { name: 'Charity Paws 2025', description: 'Charitativní akce pro pomoc opuštěným zvířatům', location: 'Ostrava', date: '2025-10-25' },
+      { name: 'Furry Art Exhibition 2026', description: 'Výstava furry umění a fotografie', location: 'Praha', date: '2026-01-15' },
+      { name: 'Spring Fursuit Walk 2026', description: 'Jarní procházka v kostýmech', location: 'Brno', date: '2026-04-10' },
     ];
     
     const createdEvents = [];
