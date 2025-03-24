@@ -2,6 +2,8 @@ import { photographers, organizers } from "./users";
 import { events, tags } from "./events";
 import { photos, storagePhotos, storageProfilePictures, photoTags, photoLikes } from "./photos";
 import { user, account, session, verificationToken } from "./auth";
+import { photographerTakeoverRequests } from "./requests";
+import { markdownImages } from "./markdown";
 
 export {
   // NextAuth.js tabulky
@@ -24,4 +26,10 @@ export {
   storageProfilePictures,
   photoTags,
   photoLikes,
+  
+  // Žádosti
+  photographerTakeoverRequests,
+  
+  // Markdown obrázky
+  markdownImages,
 };

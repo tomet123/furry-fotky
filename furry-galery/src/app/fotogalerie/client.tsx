@@ -24,16 +24,20 @@ import { PhotoGrid } from '@/components/foto/PhotoGrid';
 import { PhotoGalleryProvider, usePhotoGallery } from '@/app/contexts/PhotoGalleryContext';
 import { useRouter, usePathname, useSearchParams } from 'next/navigation';
 import { PhotoDetailModal } from '@/components/foto/PhotoDetailModal';
-import { Photo, likePhoto, unlikePhoto, getPhotoById } from '@/app/actions/photos';
+import { Photo, likePhoto, unlikePhoto, getPhotoById, PhotoFilters } from '@/app/actions/photos';
 import { useSession } from 'next-auth/react';
 import { FilterBar } from '@/components/common/FilterBar';
+
+interface FotoGalleryClientProps {
+  initialFilters?: Partial<PhotoFilters>;
+}
 
 /**
  * Klientská wrapper komponenta, která obaluje fotogalerii v PhotoGalleryProvider
  */
-export default function FotoGalleryClient() {
+export default function FotoGalleryClient({ initialFilters }: FotoGalleryClientProps = {}) {
   return (
-    <PhotoGalleryProvider>
+    <PhotoGalleryProvider initialFilters={initialFilters}>
       <FotoGalleryContent />
     </PhotoGalleryProvider>
   );

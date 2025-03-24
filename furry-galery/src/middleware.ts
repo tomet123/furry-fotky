@@ -4,8 +4,7 @@ import { withAuth } from 'next-auth/middleware';
 export default withAuth(
   // Funkce spuštěná pro všechny stránky, které potřebují ochranu
   function middleware(req) {
-    // Pokud máte funkce, které chcete spustit pro všechny autorizované požadavky
-    // můžete je přidat zde
+
     return NextResponse.next();
   },
   {
@@ -25,6 +24,8 @@ export default withAuth(
 export const config = { 
   matcher: [
     '/profil',
+    '/user/profile',
+    '/user/photographer/:path*',
     '/fotky/nahrát',
     '/admin/:path*',
     // Přidejte další cesty podle potřeby

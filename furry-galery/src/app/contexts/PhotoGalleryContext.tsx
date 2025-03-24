@@ -4,6 +4,7 @@ import React, { createContext, useContext, useState, useCallback, useEffect, use
 import { Photo, PhotoFilters } from '@/app/actions/photos';
 import { getPhotos } from '@/app/actions/photos';
 import { getPhotographers, getEvents, getTags } from '@/app/actions/filters';
+import { useRouter, usePathname, useSearchParams } from 'next/navigation';
 
 // Výchozí hodnoty filtrů
 const DEFAULT_FILTERS: PhotoFilters = {
@@ -67,16 +68,30 @@ const PhotoGalleryContext = createContext<PhotoGalleryContextType>({
   searchTags: async () => {},
 });
 
+interface PhotoGalleryProviderProps {
+  children: React.ReactNode;
+  initialFilters?: Partial<PhotoFilters>;
+}
+
 // Provider komponenta pro kontext fotogalerie
-export function PhotoGalleryProvider({ children }: { children: React.ReactNode }) {
+export function PhotoGalleryProvider({ children, initialFilters = {} }: PhotoGalleryProviderProps) {
+  const router = useRouter();
+  const pathname = usePathname();
+  
+  // Sloučení výchozích filtrů s inicializačními filtry
+  const mergedDefaultFilters = {
+    ...DEFAULT_FILTERS,
+    ...initialFilters
+  };
+
   // Stav fotogalerie
   const [photos, setPhotos] = useState<Photo[]>([]);
   const [loading, setLoading] = useState<boolean>(true);
   const [error, setError] = useState<string | null>(null);
   const [totalItems, setTotalItems] = useState<number>(0);
   const [totalPages, setTotalPages] = useState<number>(0);
-  const [currentPage, setCurrentPage] = useState<number>(1);
-  const [filters, setFilters] = useState<PhotoFilters>(DEFAULT_FILTERS);
+  const [currentPage, setCurrentPage] = useState<number>(mergedDefaultFilters.page || 1);
+  const [filters, setFilters] = useState<PhotoFilters>(mergedDefaultFilters as PhotoFilters);
   
   // Stav pro data filtrů
   const [photographers, setPhotographers] = useState<string[]>([]);
@@ -92,10 +107,49 @@ export function PhotoGalleryProvider({ children }: { children: React.ReactNode }
     timestamp: number
   }>>({});
 
+  // Funkce pro aktualizaci URL na základě filtrů
+  const updateUrlWithFilters = useCallback((currentFilters: Partial<PhotoFilters>) => {
+    // Vytvoříme URL parametry
+    const params = new URLSearchParams();
+    
+    // Přidáme parametry z aktuálních filtrů do URL
+    if (currentFilters.page && currentFilters.page > 1) {
+      params.set('page', currentFilters.page.toString());
+    }
+    
+    if (currentFilters.photographer && currentFilters.photographer !== '') {
+      params.set('photographer', currentFilters.photographer);
+    }
+    
+    if (currentFilters.event && currentFilters.event !== '') {
+      params.set('event', currentFilters.event);
+    }
+    
+    if (currentFilters.sortBy && currentFilters.sortBy !== 'newest') {
+      params.set('sortBy', currentFilters.sortBy);
+    }
+    
+    if (currentFilters.tags && currentFilters.tags.length > 0) {
+      currentFilters.tags.forEach(tag => {
+        params.append('tags', tag);
+      });
+    }
+    
+    if (currentFilters.onlyLiked) {
+      params.set('onlyLiked', 'true');
+    }
+    
+    // Aktualizace URL bez přesměrování
+    const newUrl = params.toString() ? `${pathname}?${params.toString()}` : pathname;
+    router.replace(newUrl, { scroll: false });
+  }, [pathname, router]);
+
   // Debug log pro sledování filtrů
   useEffect(() => {
     console.log('PhotoGalleryContext filters:', filters);
-  }, [filters]);
+    // Aktualizuje URL při změně filtrů
+    updateUrlWithFilters(filters);
+  }, [filters, updateUrlWithFilters]);
 
   // Funkce pro načtení fotografů s vyhledáváním - optimalizovaná
   const searchPhotographers = useCallback(async (search: string = '') => {

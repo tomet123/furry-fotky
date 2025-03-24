@@ -146,8 +146,8 @@ export const PhotographerCard = ({ photographer }: { photographer: Photographer 
       
       <Box sx={{ mt: 'auto', textAlign: 'center' }}>
         <Button 
-          component={Link} 
-          href={`/fotograf/${photographer.id}`}
+          component={Link}
+          href={`/uzivatele/fotograf/${photographer.id}`}
           variant="outlined" 
           size="small" 
           endIcon={<ArrowForwardIcon />}

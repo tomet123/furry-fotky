@@ -282,7 +282,7 @@ export default function Photographers() {
                     >
                       <CardActionArea 
                         component={Link} 
-                        href={`/uzivatele/${photographer.id}`}
+                        href={`/uzivatele/fotograf/${photographer.id}`}
                         sx={{ 
                           flexGrow: 1, 
                           display: 'flex', 

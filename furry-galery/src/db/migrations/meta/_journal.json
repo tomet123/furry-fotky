@@ -15,6 +15,20 @@
       "when": 1742686640423,
       "tag": "0001_greedy_ken_ellis",
       "breakpoints": true
+    },
+    {
+      "idx": 2,
+      "version": "6",
+      "when": 1742807734513,
+      "tag": "0002_magical_greymalkin",
+      "breakpoints": true
+    },
+    {
+      "idx": 3,
+      "version": "6",
+      "when": 1742809930076,
+      "tag": "0003_real_adam_warlock",
+      "breakpoints": true
     }
   ]
 }

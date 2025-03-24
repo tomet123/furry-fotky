@@ -227,7 +227,7 @@ export default function Header() {
                       Přihlášen jako: <strong>{session.user.username || session.user.name}</strong>
                     </Typography>
                   </MenuItem>
-                  <MenuItem onClick={handleClose} component={Link} href="/profil">
+                  <MenuItem onClick={handleClose} component={Link} href="/user/profile">
                     Můj profil
                   </MenuItem>
                   <MenuItem onClick={handleLogout}>Odhlásit se</MenuItem>

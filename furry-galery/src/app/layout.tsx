@@ -6,7 +6,11 @@ import theme from '../theme';
 import Header from '../components/Header';
 import Footer from '../components/Footer';
 import AuthProvider from '../providers/AuthProvider';
-import './globals.css';
+import '@/styles/globals.css';
+import { getServerSession } from 'next-auth';
+import { authOptions } from '@/lib/auth';
+import SessionProvider from '@/components/providers/SessionProvider';
+import { SnackbarProvider } from 'notistack';
 
 const roboto = Roboto({
   weight: ['300', '400', '500', '700'],
@@ -18,7 +22,12 @@ const roboto = Roboto({
 export const metadata = {
   title: 'FurryFotky.cz - Fotogalerie',
   description: 'Fotogalerie a komunita pro milovníky furry',
-  viewport: 'width=device-width, initial-scale=1, maximum-scale=5',
+};
+
+export const viewport = {
+  width: 'device-width',
+  initialScale: 1,
+  maximumScale: 5,
 };
 
 export default function RootLayout(props: { children: React.ReactNode }) {
