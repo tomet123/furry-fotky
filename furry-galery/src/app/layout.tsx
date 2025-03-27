@@ -1,16 +1,12 @@
 import { AppRouterCacheProvider } from '@mui/material-nextjs/v15-appRouter';
 import { Roboto } from 'next/font/google';
 import { ThemeProvider } from '@mui/material/styles';
-import { Box, Container, CssBaseline } from '@mui/material';
+import { Box, CssBaseline } from '@mui/material';
 import theme from '../theme';
 import Header from '../components/Header';
 import Footer from '../components/Footer';
 import AuthProvider from '../providers/AuthProvider';
 import '@/styles/globals.css';
-import { getServerSession } from 'next-auth';
-import { authOptions } from '@/lib/auth';
-import SessionProvider from '@/components/providers/SessionProvider';
-import { SnackbarProvider } from 'notistack';
 
 const roboto = Roboto({
   weight: ['300', '400', '500', '700'],
