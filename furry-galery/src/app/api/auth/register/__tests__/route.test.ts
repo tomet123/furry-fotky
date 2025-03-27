@@ -2,11 +2,16 @@ import { POST } from '../route';
 import * as dbModule from '@/db';
 import bcrypt from 'bcrypt';
 
-// Mock pro db modul
+// Mock pro db
 jest.mock('@/db', () => ({
   db: {
-    select: jest.fn(),
-    insert: jest.fn().mockReturnValue({ values: jest.fn() }),
+    select: jest.fn().mockReturnThis(),
+    from: jest.fn().mockReturnThis(),
+    where: jest.fn().mockReturnThis(),
+    limit: jest.fn().mockResolvedValue([]),
+    insert: jest.fn().mockReturnThis(),
+    values: jest.fn().mockReturnThis(),
+    returning: jest.fn().mockResolvedValue([{ id: '1' }]),
   },
   eq: jest.fn(),
   user: {

@@ -1,31 +1,76 @@
 import '@testing-library/jest-dom';
+import React from 'react';
 import fetch from 'node-fetch';
 
 // Nastavení globálního fetch pro testovací prostředí
 global.fetch = fetch as any;
 
-// Mock Next.js hooks
+// Definice Request a Response objektů pro testy
+global.Request = class Request {
+  constructor(url: string, options: RequestInit = {}) {
+    this.url = url;
+    this.options = options;
+  }
+  url: string;
+  options: RequestInit;
+} as unknown as typeof globalThis.Request;
+
+global.Response = class Response {
+  constructor(body: any, options: ResponseInit = {}) {
+    this.body = body;
+    this.options = options;
+  }
+  body: any;
+  options: ResponseInit;
+  headers: Headers = new Headers();
+  ok: boolean = true;
+  redirected: boolean = false;
+  status: number = 200;
+  statusText: string = '';
+  type: ResponseType = 'default';
+  url: string = '';
+  json: () => Promise<any> = async () => this.body;
+} as unknown as typeof globalThis.Response;
+
+// Mock pro Response.json
+global.Response = {
+  json: (body: any, init?: ResponseInit) => {
+    return new Response(JSON.stringify(body), init);
+  }
+} as any;
+
+// Základní mocky pro testování
 jest.mock('next/navigation', () => ({
-  useRouter: jest.fn().mockReturnValue({
+  useRouter: () => ({
     push: jest.fn(),
-    replace: jest.fn(),
-    prefetch: jest.fn()
-  }),
-  usePathname: jest.fn().mockReturnValue('/fotogalerie'),
-  useSearchParams: jest.fn().mockReturnValue({
-    get: jest.fn().mockImplementation(key => {
-      if (key === 'page') return '1';
-      return null;
-    }),
-    toString: jest.fn().mockReturnValue(''),
-    has: jest.fn().mockReturnValue(false),
-    getAll: jest.fn().mockReturnValue([]),
   }),
 }));
 
-// Mock Next.js auth
 jest.mock('next-auth/react', () => ({
-  useSession: jest.fn().mockReturnValue({ data: null, status: 'unauthenticated' }),
-  signIn: jest.fn(),
-  signOut: jest.fn(),
+  useSession: () => ({
+    data: {
+      user: {
+        id: 'test-user-id',
+      },
+    },
+  }),
+}));
+
+// Mock pro CanvasImage komponentu
+jest.mock('@/components/foto/CanvasImage', () => ({
+  __esModule: true,
+  default: ({ alt, photoId, ...props }: any) => 
+    React.createElement('div', {
+      'data-testid': 'canvas-image',
+      'data-photo-id': photoId,
+      ...props
+    }, alt)
+}));
+
+// Mock pro AspectRatioIcon
+jest.mock('@mui/icons-material/AspectRatio', () => ({
+  __esModule: true,
+  default: () => React.createElement('div', {
+    'data-testid': 'AspectRatioIcon'
+  }, 'AspectRatioIcon')
 })); 

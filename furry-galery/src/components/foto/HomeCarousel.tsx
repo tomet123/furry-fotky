@@ -262,7 +262,6 @@ export const HomeCarousel = ({
           onMouseEnter={handleMouseEnter}
           onMouseLeave={handleMouseLeave}
           sx={{ position: 'relative' }}
-          onClick={() => handleOpenModal(currentPhoto)}
         >
           <Paper
             sx={{
@@ -276,7 +275,6 @@ export const HomeCarousel = ({
               alignItems: 'center',
               justifyContent: 'center',
               borderRadius: 2,
-              cursor: 'pointer',
             }}
             elevation={4}
           >

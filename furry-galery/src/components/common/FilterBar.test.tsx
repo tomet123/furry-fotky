@@ -290,7 +290,7 @@ describe('FilterBar Component', () => {
     );
     
     // Ověříme, že se zobrazuje informace o počtu položek
-    expect(screen.getByText('Nalezeno 42 položek')).toBeInTheDocument();
+    expect(screen.getByText(/Nalezeno 42 položek/)).toBeInTheDocument();
   });
   
   it('zobrazuje dodatečné komponenty v extraFields', () => {

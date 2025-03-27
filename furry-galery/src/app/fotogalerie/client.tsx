@@ -188,7 +188,8 @@ function GalleryContent() {
     totalItems, 
     totalPages, 
     currentPage, 
-    setPage
+    setPage,
+    refreshPhotos
   } = usePhotoGallery();
   const { data: session } = useSession();
   
@@ -250,19 +251,23 @@ function GalleryContent() {
     try {
       if (!session?.user?.id) return;
       await likePhoto(photo.id, session.user.id);
+      // Aktualizujeme stav fotografií v galerii
+      refreshPhotos();
     } catch (error) {
       // Chyba zpracována tiše
     }
-  }, [session]);
+  }, [session, refreshPhotos]);
   
   const handleUnlike = useCallback(async (photo: Photo) => {
     try {
       if (!session?.user?.id) return;
       await unlikePhoto(photo.id, session.user.id);
+      // Aktualizujeme stav fotografií v galerii
+      refreshPhotos();
     } catch (error) {
       // Chyba zpracována tiše
     }
-  }, [session]);
+  }, [session, refreshPhotos]);
 
   if (loading && photos.length === 0) {
     return (

@@ -1,5 +1,5 @@
 import React from 'react';
-import { render, screen, waitFor } from '@testing-library/react';
+import { render, screen, waitFor, act } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { PhotoGalleryProvider, usePhotoGallery } from '../PhotoGalleryContext';
 import * as photosActions from '@/app/actions/photos';
@@ -404,7 +404,6 @@ describe('PhotoGalleryContext', () => {
     // Klikneme na tlačítko pro smazání fotografie
     await user.click(screen.getByTestId('delete-photo'));
     
-    // V testovacím prostředí se volá speciální dynamicky importovaná funkce
     // Ověříme, že bylo provedeno načtení fotografií po smazání
     expect(photosActions.getPhotos).toHaveBeenCalled();
   });

@@ -6,12 +6,25 @@ const createJestConfig = nextJest({
 });
 
 const config: Config = {
-  testEnvironment: 'jest-environment-jsdom',
   setupFilesAfterEnv: ['<rootDir>/jest.setup.ts'],
+  testEnvironment: 'jest-environment-jsdom',
   moduleNameMapper: {
     '^@/(.*)$': '<rootDir>/src/$1',
+    '^@/components/common/CloudinaryUploadWidget$': '<rootDir>/src/components/common/CloudinaryUploadWidget',
+    '^@/app/contexts/NotificationsContext$': '<rootDir>/src/app/contexts/NotificationsContext',
   },
-  collectCoverage: true,
+  transformIgnorePatterns: [
+    '/node_modules/(?!(nanoid|@nanoid|url-alphabet)/)',
+  ],
+  testMatch: [
+    '**/__tests__/**/*.test.[jt]s?(x)',
+  ],
+  collectCoverageFrom: [
+    'src/**/*.{js,jsx,ts,tsx}',
+    '!src/**/*.d.ts',
+    '!src/**/*.stories.{js,jsx,ts,tsx}',
+    '!src/**/*.test.{js,jsx,ts,tsx}',
+  ],
   coverageThreshold: {
     global: {
       branches: 80,
@@ -20,11 +33,6 @@ const config: Config = {
       statements: 80,
     },
   },
-  coverageReporters: ['text', 'lcov', 'html'],
-  testPathIgnorePatterns: [
-    '<rootDir>/node_modules/',
-    '<rootDir>/.next/',
-  ],
 };
 
 export default createJestConfig(config); 

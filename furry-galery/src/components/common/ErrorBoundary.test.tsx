@@ -22,33 +22,25 @@ describe('ErrorBoundary Component', () => {
 
   it('zobrazuje děti, pokud nedojde k chybě', () => {
     render(
-      <ErrorBoundary fallback={<div>Došlo k chybě</div>}>
+      <ErrorBoundary>
         <NormalComponent />
       </ErrorBoundary>
     );
 
     expect(screen.getByText('Toto je normální komponenta')).toBeInTheDocument();
-    expect(screen.queryByText('Došlo k chybě')).not.toBeInTheDocument();
+    expect(screen.queryByTestId('error-boundary')).not.toBeInTheDocument();
   });
 
-  it('zobrazuje fallback komponentu, pokud dojde k chybě', () => {
-    // Potlačení chyb v konzoli při tomto testu
-    jest.spyOn(console, 'error').mockImplementation(() => {});
-    
-    // React vypisuje chybu při testování ErrorBoundary, takže ji zachytíme
-    const originalError = console.error;
-    console.error = jest.fn();
-    
+  it('zobrazuje chybovou zprávu, pokud dojde k chybě', () => {
     render(
-      <ErrorBoundary fallback={<div>Došlo k chybě</div>}>
+      <ErrorBoundary>
         <ErrorComponent />
       </ErrorBoundary>
     );
 
-    expect(screen.getByText('Došlo k chybě')).toBeInTheDocument();
-    
-    // Obnovení console.error
-    console.error = originalError;
+    expect(screen.getByTestId('error-boundary')).toBeInTheDocument();
+    expect(screen.getByText('Něco se pokazilo.')).toBeInTheDocument();
+    expect(screen.getByText('Test error')).toBeInTheDocument();
   });
 
   it('umožňuje resetovat stav ErrorBoundary', () => {
@@ -77,17 +69,55 @@ describe('ErrorBoundary Component', () => {
   });
 
   it('umožňuje přizpůsobit fallback obsah', () => {
-    // React vypisuje chybu při testování ErrorBoundary, takže ji zachytíme
-    jest.spyOn(console, 'error').mockImplementation(() => {});
-    
     const customFallbackText = 'Vlastní chybová zpráva';
-    
+    const customFallback = <div>{customFallbackText}</div>;
+
+    // Zachování původního console.error
+    const originalError = console.error;
+    console.error = jest.fn();
+
     render(
-      <ErrorBoundary fallback={<div>{customFallbackText}</div>}>
+      <ErrorBoundary fallback={customFallback}>
         <ErrorComponent />
       </ErrorBoundary>
     );
 
     expect(screen.getByText(customFallbackText)).toBeInTheDocument();
+
+    // Obnovení console.error
+    console.error = originalError;
+  });
+});
+
+const ThrowError = () => {
+  throw new Error('Test error');
+};
+
+describe('ErrorBoundary', () => {
+  it('zobrazí chybovou zprávu při chybě', () => {
+    const consoleSpy = jest.spyOn(console, 'error').mockImplementation(() => {});
+    
+    render(
+      <ErrorBoundary>
+        <ThrowError />
+      </ErrorBoundary>
+    );
+
+    expect(screen.getByTestId('error-boundary')).toBeInTheDocument();
+    expect(screen.getByText('Něco se pokazilo.')).toBeInTheDocument();
+    expect(screen.getByText('Test error')).toBeInTheDocument();
+    
+    consoleSpy.mockRestore();
+  });
+
+  it('zobrazí děti při absenci chyby', () => {
+    render(
+      <ErrorBoundary>
+        <div>Test content</div>
+      </ErrorBoundary>
+    );
+
+    expect(screen.getByText('Test content')).toBeInTheDocument();
+    expect(screen.queryByTestId('error-boundary')).not.toBeInTheDocument();
   });
 }); 
