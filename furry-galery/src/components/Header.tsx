@@ -1,5 +1,5 @@
 'use client';
-import { AppBar, Toolbar, Typography, Button, Box, Container, Tabs, Tab, Avatar, Menu, MenuItem, IconButton, Stack, Drawer, List, Divider, useTheme, useMediaQuery } from '@mui/material';
+import { AppBar, Toolbar, Typography, Button, Box, Container, Tabs, Tab, Avatar, Menu, MenuItem, IconButton, Stack, Drawer, List, Divider, useTheme, useMediaQuery, CircularProgress } from '@mui/material';
 import Link from 'next/link';
 import { usePathname } from 'next/navigation';
 import { useSession, signOut } from 'next-auth/react';
@@ -189,7 +189,16 @@ export default function Header() {
 
           {/* Přihlášení/Odhlášení - optimalizováno pro všechny velikosti obrazovky */}
           <Box sx={{ display: 'flex', alignItems: 'center' }}>
-            {status === 'authenticated' && session?.user ? (
+            {status === 'loading' ? (
+              <Box sx={{ display: 'flex', alignItems: 'center' }}>
+                <CircularProgress size={24} color="inherit" sx={{ mr: isMobile ? 0 : 1 }} />
+                {!isMobile && (
+                  <Typography variant="body2">
+                    Načítání...
+                  </Typography>
+                )}
+              </Box>
+            ) : status === 'authenticated' && session?.user ? (
               <>
                 <Stack direction="row" spacing={1} alignItems="center">
                   {/* Zobrazení uživatelského jména vedle avataru */}

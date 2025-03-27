@@ -7,7 +7,7 @@ export async function GET(
   { params }: { params: { id: string } }
 ) {
   try {
-    const id = params.id;
+    const id = (await params).id;
     
     // Pokud ID začíná prefixem mdimg_, odebereme ho pro vyhledávání
     const searchId = id.startsWith('mdimg_') ? id : `mdimg_${id}`;

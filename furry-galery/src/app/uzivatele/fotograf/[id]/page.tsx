@@ -14,7 +14,7 @@ export const metadata = {
  * Stránka detailu fotografa - načte data fotografa ze serveru a předá je klientské komponentě
  */
 export default async function PhotographerDetailPage({ params }: { params: { id: string } }) {
-  const { id } = params;
+  const { id } = await params;
   
   if (!id) {
     return notFound();
