@@ -1,0 +1,1 @@
+ALTER TABLE `events` ADD `image_id` text REFERENCES storage_photos(id);

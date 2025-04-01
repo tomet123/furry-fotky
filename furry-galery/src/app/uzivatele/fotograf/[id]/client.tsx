@@ -15,16 +15,20 @@ import {
   Stack,
   Skeleton,
   Button,
+  IconButton,
+  Tooltip,
 } from '@mui/material';
 import CameraIcon from '@mui/icons-material/Camera';
 import PersonIcon from '@mui/icons-material/Person';
 import CalendarMonthIcon from '@mui/icons-material/CalendarMonth';
 import ArrowBackIcon from '@mui/icons-material/ArrowBack';
 import EventIcon from '@mui/icons-material/Event';
+import EditIcon from '@mui/icons-material/Edit';
 import Link from 'next/link';
 import MarkdownRenderer from '@/components/markdown/MarkdownRenderer';
 import EventCard, { EventData } from '@/components/events/EventCard';
 import { useRouter } from 'next/navigation';
+import { useSession } from 'next-auth/react';
 
 // Typ pro fotografa s jeho uživatelskými daty
 interface PhotographerWithUser {
@@ -58,6 +62,7 @@ interface PhotographerDetailClientProps {
 
 export default function PhotographerDetailClient({ photographer }: PhotographerDetailClientProps) {
   const router = useRouter();
+  const { data: session } = useSession();
   
   // Formátování data vytvoření profilu
   const formattedDate = photographer.createdAt
@@ -77,11 +82,19 @@ export default function PhotographerDetailClient({ photographer }: PhotographerD
     photographerId: photographer.id,
     photographerName: photographer.user?.username || photographer.user?.name || ''
   });
+
+  // Kontrola, zda je aktuální uživatel na svém profilu
+  const isOwnProfile = session?.user?.id === photographer.userId;
   
   return (
     <Container maxWidth="lg">
-      {/* Tlačítko zpět */}
-      <Box sx={{ my: 2 }}>
+      {/* Horní lišta s tlačítky */}
+      <Box sx={{ 
+        my: 2, 
+        display: 'flex', 
+        justifyContent: 'space-between',
+        alignItems: 'center'
+      }}>
         <Button
           startIcon={<ArrowBackIcon />}
           onClick={() => router.back()}
@@ -90,6 +103,20 @@ export default function PhotographerDetailClient({ photographer }: PhotographerD
         >
           Zpět
         </Button>
+
+        {isOwnProfile && (
+          <Tooltip title="Upravit profil">
+            <IconButton
+              onClick={() => router.push(`/uzivatele/fotograf/${photographer.id}/edit`)}
+              sx={{
+                color: 'text.secondary',
+                '&:hover': { color: 'primary.main' }
+              }}
+            >
+              <EditIcon />
+            </IconButton>
+          </Tooltip>
+        )}
       </Box>
       
       <Grid container spacing={4}>

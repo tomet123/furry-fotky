@@ -1,0 +1,1 @@
+DROP INDEX `tags_name_unique`;
